@@ -24,12 +24,14 @@ class StyleAgent(BaseAgent):
                 original_code="",  # optional for now
                 fixed_code="",     # optional for now (no auto-fix yet)
                 rationale=f"{issue.rule_id}: {issue.message}",
-                confidence=0.7, # default value
+                confidence=1.0, # default value
             )
         )
 
         return suggestions
-
+    
+    def validate(self, suggestion: Suggestion) -> bool:
+        return True # For now, we assume the linter suggestions are always valid
 
     def _run_pylint(self, file_path: str) -> list[dict]:
         try:
