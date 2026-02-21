@@ -1,11 +1,10 @@
 import logging
 
-from agents.code_style_agent import StyleAgent
-from model.input import parse_input
-from model.planner import plan
-from models.issue import Issue
-from models.suggestion import Suggestion
-from model.input import ParsedInput
+from src.agents.code_style_agent import StyleAgent
+from src.model.input import parse_input, ParsedInput
+from src.model.planner import plan
+from src.models.issue import Issue
+from src.models.suggestion import Suggestion
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,6 @@
 import logging
 
-from model.input import ParsedInput, AGENTS
+from src.model.input import ParsedInput, AGENTS
 
 logger = logging.getLogger(__name__)
 

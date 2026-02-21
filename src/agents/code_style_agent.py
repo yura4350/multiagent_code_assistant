@@ -2,9 +2,9 @@ import subprocess
 import json
 import logging
 
-from agents.abstract_agent import BaseAgent
-from models.issue import Issue
-from models.suggestion import Suggestion
+from src.agents.abstract_agent import BaseAgent
+from src.models.issue import Issue
+from src.models.suggestion import Suggestion
 
 import re
 
