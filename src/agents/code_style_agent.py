@@ -42,8 +42,9 @@ class StyleAgent(BaseAgent):
     """
     Validate the suggestions
     """
-    def validate(self, before_issues: list[Issue], after_issues: list[Issue]) -> bool:
-        return True # For now, assume linter suggestions are always valid
+    def validate(self, issues: list[Issue]) -> bool:
+        """Valid when there are no remaining lint issues."""
+        return len(issues) == 0
     
     """
     Apply the suggestions to the code
