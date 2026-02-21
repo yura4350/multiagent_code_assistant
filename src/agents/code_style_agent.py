@@ -1,8 +1,8 @@
 import subprocess
 import json
-from src.agents.abstract_agent import BaseAgent
-from src.models.issue import Issue
-from src.models.suggestion import Suggestion
+from agents.abstract_agent import BaseAgent
+from models.issue import Issue
+from models.suggestion import Suggestion
 
 
 class StyleAgent(BaseAgent):
