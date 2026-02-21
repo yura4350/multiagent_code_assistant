@@ -15,8 +15,21 @@ class StyleAgent(BaseAgent):
         return issues
 
     def generate_suggestions(self, issues: list[Issue], code: str) -> list[Suggestion]:
-        # TODO: Call generator when ready
-        return []
+        suggestions: list[Suggestion] = []
+
+        for issue in issues:
+            suggestions.append(
+            Suggestion(
+                issue=issue,
+                original_code="",  # optional for now
+                fixed_code="",     # optional for now (no auto-fix yet)
+                rationale=f"{issue.rule_id}: {issue.message}",
+                confidence=0.7, # default value
+            )
+        )
+
+        return suggestions
+
 
     def _run_pylint(self, file_path: str) -> list[dict]:
         try:

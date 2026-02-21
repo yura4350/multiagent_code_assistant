@@ -23,6 +23,14 @@ class Controller:
         issues = agent.scan(planned_input.file_path)
         suggestions = agent.generate_suggestions(issues, planned_input.file_content)
 
-
+        if not suggestions:
+            logger.info("No suggestions found.")
+        else:
+            logger.info(f"Found {len(suggestions)} suggestion(s):")
+            for s in suggestions:
+                logger.info(
+                    f"- line {s.issue.line}:{s.issue.column} "
+                    f"[{s.issue.severity}] {s.issue.rule_id} - {s.rationale}"
+                )
 
         
