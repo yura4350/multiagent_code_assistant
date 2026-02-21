@@ -5,6 +5,7 @@ import logging
 from agents.abstract_agent import BaseAgent
 from models.issue import Issue
 from models.suggestion import Suggestion
+
 import re
 
 logger = logging.getLogger(__name__)
@@ -13,10 +14,16 @@ class StyleAgent(BaseAgent):
     def __init__(self) -> None:
         super().__init__("CodeStyle")
 
+    """
+    Scan the code for the linting issues
+    """
     def scan(self, file_path: str) -> list[Issue]:
         lint_results = self._run_ruff_check(file_path)
         return self._parse_ruff_output(lint_results)
-
+    
+    """
+    Generate suggestions for the linting issues
+    """
     def generate_suggestions(self, issues: list[Issue], code: str) -> list[Suggestion]:
         suggestions: list[Suggestion] = []
 
@@ -31,9 +38,15 @@ class StyleAgent(BaseAgent):
 
         return suggestions
     
+    """
+    Validate the suggestions
+    """
     def validate(self, before_issues: list[Issue], after_issues: list[Issue]) -> bool:
         return True # For now, assume linter suggestions are always valid
     
+    """
+    Apply the suggestions to the code
+    """
     def apply(self, file_path: str) -> None:
         self._run_ruff_fix(file_path)
         self._run_ruff_format(file_path)
