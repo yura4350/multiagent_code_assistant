@@ -79,26 +79,6 @@ class StyleAgent(BaseAgent):
             logger.warning("Could not parse Ruff JSON output.")
             return []
     
-    def _run_ruff_fix(self, file_path: str) -> None:
-        result = subprocess.run(
-            ["ruff", "check", file_path, "--fix"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode not in (0, 1):
-            logger.warning("Ruff fix failed: %s", result.stderr.strip())
-
-    def _run_ruff_format(self, file_path: str) -> None:
-        result = subprocess.run(
-            ["ruff", "format", file_path],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode not in (0, 1):
-            logger.warning("Ruff format failed: %s", result.stderr.strip())
-
     def _parse_ruff_output(self, linting_issues: list[dict]) -> list[Issue]:
         if not linting_issues:
             return []
@@ -123,6 +103,26 @@ class StyleAgent(BaseAgent):
             )
 
         return issues
+    
+    def _run_ruff_fix(self, file_path: str) -> None:
+        result = subprocess.run(
+            ["ruff", "check", file_path, "--fix"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode not in (0, 1):
+            logger.warning("Ruff fix failed: %s", result.stderr.strip())
+
+    def _run_ruff_format(self, file_path: str) -> None:
+        result = subprocess.run(
+            ["ruff", "format", file_path],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode not in (0, 1):
+            logger.warning("Ruff format failed: %s", result.stderr.strip())
 
     def _severity_from_rule(self, rule_id: str) -> str:
         # Lightweight heuristic for MVP reporting.
