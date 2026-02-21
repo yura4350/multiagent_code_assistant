@@ -22,7 +22,8 @@ class StyleAgent(BaseAgent):
         return self._parse_ruff_output(lint_results)
     
     """
-    Generate suggestions for the linting issues
+    Generate suggestions for the linting issues.
+    FOR RUFF LINTER - LOGGING
     """
     def generate_suggestions(self, issues: list[Issue], code: str) -> list[Suggestion]:
         suggestions: list[Suggestion] = []
