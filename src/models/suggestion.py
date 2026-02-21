@@ -1,4 +1,4 @@
-from src.models.issue import Issue
+from models.issue import Issue
 from pydantic import BaseModel
 
 
