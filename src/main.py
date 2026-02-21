@@ -1,6 +1,6 @@
 import logging
 
-from controller import Controller
+from src.controller import Controller
 
 logging.basicConfig(
     level=logging.INFO,

@@ -16,11 +16,12 @@ class BaseAgent(ABC):
     def generate_suggestions(self, issues: list[Issue], code: str) -> list[Suggestion]:
         """Generate fix suggestions for given issues"""
         pass
-
-    def validate(self, suggestion: Suggestion) -> bool:  # TODO: Phase 2
+    
+    @abstractmethod
+    def validate(self, suggestion: Suggestion) -> bool:
         """Validate a suggestion"""
-        return True
-
+        pass
+    
     def apply(self, suggestion: Suggestion, file_path: str) -> None:  # TODO: Phase 2
         """Apply suggestion to file"""
         pass
