@@ -1,0 +1,38 @@
+stages:
+  - lint
+  - test
+  - security
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip/
+
+lint:
+  stage: lint
+  image: python:3.11-slim
+  before_script:
+    - pip install ruff pylint --quiet
+  script:
+    - ruff check src/
+    - pylint src/ --fail-under=7.0
+
+test:
+  stage: test
+  image: python:3.11-slim
+  before_script:
+    - pip install -r requirements.txt --quiet
+    - pip install pytest pytest-cov --quiet
+  script:
+    - pytest tests/ --cov=src --cov-report=term-missing --cov-fail-under=70
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+
+security:
+  stage: security
+  image: python:3.11-slim
+  before_script:
+    - pip install bandit --quiet
+  script:
+    - bandit -r src/ -ll
