@@ -9,6 +9,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+
 def main():
     controller = Controller()
     controller.run()
