@@ -5,25 +5,23 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
-AGENTS = [
-    "CODE_STYLE",
-    "IDIOMS",
-    "TESTS",
-    "DESIGN"
-]
+AGENTS = ["CODE_STYLE", "IDIOMS", "TESTS", "DESIGN"]
+
 
 @dataclass
 class ParsedInput:
     agent: str | None
     file_path: str
     file_content: str
-    apply: bool # determine whether or not to apply the suggestions
+    apply: bool  # determine whether or not to apply the suggestions
 
 
 def parse_input(args=None):
     parser = argparse.ArgumentParser(description="AI Code Assistant")
     parser.add_argument("file", help="Path to the source file")
-    parser.add_argument("--agent", choices=AGENTS, default=None, help="Agent to use (optional)")
+    parser.add_argument(
+        "--agent", choices=AGENTS, default=None, help="Agent to use (optional)"
+    )
     parser.add_argument(
         "--apply",
         action="store_true",

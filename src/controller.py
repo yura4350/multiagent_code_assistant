@@ -1,7 +1,7 @@
 import logging
 
 from src.agents.code_style_agent import StyleAgent
-from src.model.input import parse_input, ParsedInput
+from src.model.input import ParsedInput, parse_input
 from src.model.planner import plan
 from src.models.issue import Issue
 from src.models.suggestion import Suggestion
@@ -44,7 +44,7 @@ class Controller:
         )
 
         self._log_issues(issues)
-    
+
     def _log_issues(self, issues: list[Issue]):
         if issues:
             for issue in issues:
@@ -56,7 +56,7 @@ class Controller:
                     issue.rule_id,
                     issue.message,
                 )
-    
+
     def _log_suggestions(self, suggestions: list[Suggestion]):
         if suggestions:
             for suggestion in suggestions:
@@ -68,7 +68,7 @@ class Controller:
                     suggestion.issue.rule_id,
                     suggestion.issue.message,
                 )
-    
+
     def _log_parsed_input(self, parsed_input: ParsedInput):
         logger.info(
             "Parsed input: agent=%s, file=%s, apply=%s",
