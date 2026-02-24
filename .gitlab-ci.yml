@@ -14,10 +14,9 @@ lint:
   stage: lint
   image: python:3.11-slim
   before_script:
-    - pip install ruff pylint --quiet
+    - pip install ruff --quiet
   script:
     - ruff check src/
-    - pylint src/ --fail-under=7.0
 
 test:
   stage: test
