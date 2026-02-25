@@ -6,3 +6,4 @@ pydantic
 bandit
 fastapi
 uvicorn
+openai
