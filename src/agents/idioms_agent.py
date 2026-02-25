@@ -29,7 +29,7 @@ class IdiomsAgent(BaseAgent):
         )
         idiom_scanner_prompt = f"""
         Role: You are a distinguished Python engineer
-        Task: Analyze the given Python code ONLY for Pythonic idiom violations. 
+        Task: Analyze the given Python code ONLY for Pythonic idiom violations.
             Do NOT report spacing, formatting, or linting issues.
 
         Focus ONLY on these kinds of issues:
@@ -44,7 +44,7 @@ class IdiomsAgent(BaseAgent):
         - Using bare except instead of specific exception types
 
         Return ONLY a valid JSON array with no extra text, no markdown, no backticks.
-        Each element must have: 
+        Each element must have:
             - line (int), message (str), severity (str), rule_id (str), column (int).
 
         Code to analyze:
@@ -79,7 +79,7 @@ class IdiomsAgent(BaseAgent):
         idiom_scanner_prompt = f"""
         Role: You are a distinguished Python engineer at Big Tech.
         Task: Based on the list of issues identifed in terms of the given Python
-                code ONLY for Pythonic idiom violations. 
+                code ONLY for Pythonic idiom violations.
         Generate suggestions for improvement
 
         Return a suggestion.
@@ -88,7 +88,7 @@ class IdiomsAgent(BaseAgent):
         Each element must have:
         - "issue": {{object with line, message, severity, rule_id, column}}
         - "original_code": string
-        - "fixed_code": string  
+        - "fixed_code": string
         - "rationale": string
         - "confidence": float 0.0-1.0
 
