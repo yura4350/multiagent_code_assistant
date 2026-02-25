@@ -6,4 +6,4 @@ pydantic
 bandit
 fastapi
 uvicorn
-openai
+openaipython-dotenv
