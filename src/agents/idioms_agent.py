@@ -115,8 +115,46 @@ class IdiomsAgent(BaseAgent):
     def validate(self, suggestion: Suggestion) -> bool:
         return super().validate(suggestion)
 
-    def apply(self, suggestion: Suggestion, file_path: str) -> None:
-        return super().apply(suggestion, file_path)
+    def apply(self, suggestions: list[Suggestion], file_path: str) -> None:
+        """
+        Suggestion contains an issue with original code and fixed code.
+        This functions aggregates these suggestions and provides updated code.
+        """
+
+        # TODO: Replace with LLM Generator when ready
+        client = OpenAI(
+            api_key=LLM_TOKEN,
+            base_url=LLM_API_URL,
+        )
+
+        suggestions_json = json.dumps([s.model_dump() for s in suggestions], indent=2)
+        code = self._read_file(file_path)
+
+        idiom_apply_suggestion_prompt = f"""
+        Role: You are a senior software engineer at Big Tech.
+        Task: Apply the following suggestions to the given Python code.
+            Replace each original_code snippet with the corresponding fixed_code.
+        Code to fix:
+        {code}
+
+        Suggestions:
+        {suggestions_json}
+
+        Return ONLY the complete fixed Python script
+        with no extra text, no markdown, no backticks.
+        """
+        response = client.chat.completions.create(
+            model="GPT 4.1",
+            messages=[{"role": "user", "content": idiom_apply_suggestion_prompt}],
+        )
+
+        raw = response.choices[0].message.content
+
+        if raw:
+            logger.info("raw: %s", raw)
+            self._parse_applied_suggestion(raw, file_path)
+
+        return
 
     def _read_file(self, file_path: str) -> str:
         with open(file_path, "r") as file:
@@ -168,3 +206,10 @@ class IdiomsAgent(BaseAgent):
         except (json.JSONDecodeError, TypeError) as e:
             logger.error("Failed to parse suggestions from LLM response: %s", e)
             return []
+
+    def _parse_applied_suggestion(self, response: str, file_path: str) -> None:
+        """Write the LLM-returned fixed code back to the file."""
+        clean = response.strip().removeprefix("```python").removesuffix("```").strip()
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(clean)
+        logger.info("Applied suggestions to %s", file_path)
