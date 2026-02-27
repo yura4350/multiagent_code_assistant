@@ -6,20 +6,33 @@ import * as vscode from 'vscode';
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "agent-extension" is now active!');
+	const outputChannel = vscode.window.createOutputChannel('AI Assistant');
+	outputChannel.appendLine('AI Assistant extension activated.');
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('agent-extension.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
+	const disposable = vscode.commands.registerCommand('agent-extension.analyze', async () => {
+		// Get the current active editor
+		const editor = vscode.window.activeTextEditor;
+		if (!editor) {
+			vscode.window.showWarningMessage('AI Assistant: No active editor found.');
+			return;
+		}
 
-		
+		// Retrieve context of the current file
+		const document = editor.document;
+		const fileContent = document.getText();
+
+		// Extract file name
+		const fileName = document.fileName.split('/').pop();
+
+		// Read backend server URL from configuration
+		const config = vscode.workspace.getConfiguration('aiAssistant');
+		const backendUrl = config.get<string>('backendUrl', 'http://vcm-52527.vm.duke.edu:8000');
+
+		outputChannel.appendLine(`[${new Date().toISOString()}] Analyzing: ${fileName} (${fileContent.length} chars) → ${backendUrl}`);
+		outputChannel.show(true);
 	});
 
-	context.subscriptions.push(disposable);
+	context.subscriptions.push(disposable, outputChannel);
 }
 
 // This method is called when your extension is deactivated

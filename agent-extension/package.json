@@ -17,7 +17,17 @@
         "command": "agent-extension.analyze",
         "title": "AI Code Analysis: Analyze Current File"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "AI Assistant",
+      "properties": {
+        "aiAssistant.backendUrl": {
+          "type": "string",
+          "default": "http://vcm-52527.vm.duke.edu:8000",
+          "description": "Backend server URL for AI code assistant"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
