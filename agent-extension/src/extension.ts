@@ -2,6 +2,28 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 
+// Define interfaces same as the backend
+interface Issue {
+	line: number;
+	column: number | null;
+	severity: string;
+	rule_id: string;
+	message: string;
+}
+
+interface Suggestion {
+	issue: Issue;
+	original_code: string | null;
+	fixed_code: string | null;
+	rationale: string;
+	confidence: number | null;
+}
+
+interface AnalyzeResponse {
+	issues: Issue[];
+	suggestions: Suggestion[];
+}
+
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
@@ -28,7 +50,41 @@ export function activate(context: vscode.ExtensionContext) {
 		const config = vscode.workspace.getConfiguration('aiAssistant');
 		const backendUrl = config.get<string>('backendUrl', 'http://vcm-52527.vm.duke.edu:8000');
 
-		outputChannel.appendLine(`[${new Date().toISOString()}] Analyzing: ${fileName} (${fileContent.length} chars) → ${backendUrl}`);
+		// Prompt user to select an agent
+		const agent = await vscode.window.showQuickPick(
+			['CODE_STYLE', "IDIOMS", "TESTS", "DESIGN"],
+			{ placeHolder: 'Select an AI agent to run: CODE_STYLE | IDIOMS | TESTS | DESIGN' }
+		);
+
+		if (!agent) {
+			return;
+		}
+
+		outputChannel.appendLine(`[${new Date().toISOString()}] Analyzing: ${fileName} (${fileContent.length} chars) → ${backendUrl} [agent: ${agent}]`);
+
+		try {
+			const response = await fetch(`${backendUrl}/analyze`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					file_content: fileContent,
+					file_name: fileName,
+					agent: agent
+				})
+			});
+
+			if (!response.ok) {
+				throw new Error(`Server error: ${response.status}`);
+			}
+
+			const data = await response.json() as AnalyzeResponse;
+			outputChannel.appendLine(`Received ${data.issues.length} issue(s), ${data.suggestions.length} suggestion(s).`);
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			outputChannel.appendLine(`Error: ${msg}`);
+			vscode.window.showErrorMessage(`AI Assistant: ${msg}`);
+		}
+
 		outputChannel.show(true);
 	});
 
