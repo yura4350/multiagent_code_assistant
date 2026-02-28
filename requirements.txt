@@ -6,6 +6,7 @@ pydantic
 bandit
 fastapi
 uvicorn
+httpx
 openai
 python-dotenv
 

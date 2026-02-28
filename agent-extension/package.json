@@ -23,7 +23,7 @@
       "properties": {
         "aiAssistant.backendUrl": {
           "type": "string",
-          "default": "http://vcm-52527.vm.duke.edu:8000",
+          "default": "http://localhost:8000",
           "description": "Backend server URL for AI code assistant"
         }
       }

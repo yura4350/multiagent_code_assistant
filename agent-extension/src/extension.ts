@@ -47,9 +47,9 @@ export function activate(context: vscode.ExtensionContext) {
 		const fileName = document.fileName.split('/').pop();
 
 		// Read backend server URL from configuration
-		// Currently defaults to the dev server
+		// Currently defaults to the dev server http://vcm-52527.vm.duke.edu:8000
 		const config = vscode.workspace.getConfiguration('aiAssistant');
-		const backendUrl = config.get<string>('backendUrl', 'http://vcm-52527.vm.duke.edu:8000');
+		const backendUrl = config.get<string>('backendUrl', 'http://localhost:8000');
 
 		// Prompt user to select an agent
 		const agentPick = await vscode.window.showQuickPick(
