@@ -11,4 +11,5 @@ COPY data/ ./data/
 EXPOSE 8000
 
 # CMD ["python", "-m", "src.main", "--help"]
-CMD ["python", "-c", "import src.main; print('OK')"]
+# CMD ["python", "-c", "import src.main; print('OK')"]
+CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]
