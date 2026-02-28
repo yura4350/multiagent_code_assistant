@@ -15,11 +15,14 @@ LLM_TOKEN = os.getenv("LITELLM_TOKEN")
 LLM_API_URL = os.getenv("LLM_API_URL", "https://litellm.oit.duke.edu/v1")
 
 
-class TestsAgent(BaseAgent):
+class TestingAgent(BaseAgent):
     """Agent that identifies missing or weak tests and suggests improvements."""
 
+    # Prevents pytest from trying to collect this class as a test suite
+    __test__ = False
+
     def __init__(self) -> None:
-        super().__init__("TESTS")
+        super().__init__("Testing")
 
     def scan(self, file_path: str) -> list[Issue]:
         """Scan source and test files for missing or insufficient tests."""
@@ -120,11 +123,31 @@ class TestsAgent(BaseAgent):
 
     def validate(self, suggestion: Suggestion) -> bool:
         """Validate that suggestion contains at least one test function."""
-        pass
+        if not suggestion.fixed_code or not suggestion.fixed_code.strip():
+            logger.warning("Suggestion has no fixed code, skipping.")
+            return False
+        if "def test_" not in suggestion.fixed_code:
+            logger.warning("Suggestion contains no test functions, skipping.")
+            return False
+        return True
 
     def apply(self, suggestions: list[Suggestion], file_path: str) -> None:
         """Write suggested tests to the corresponding test file."""
-        pass
+        valid_suggestions = [s for s in suggestions if self.validate(s)]
+
+        if not valid_suggestions:
+            logger.warning("No valid suggestions to apply.")
+            return
+
+        fixed_code_all = "\n\n".join(s.fixed_code for s in valid_suggestions)
+
+        test_file_path = self._get_test_file_path(file_path)
+        with open(test_file_path, "a", encoding="utf-8") as f:
+            f.write("\n\n" + fixed_code_all)
+        logger.info(
+            "Appended %d suggestions to %s", len(valid_suggestions), test_file_path
+        )
+        return
 
     def _read_file(self, file_path: str) -> str:
         """Read and return file contents."""
@@ -187,6 +210,7 @@ class TestsAgent(BaseAgent):
 
         Example: src/agents/idioms_agent.py -> tests/agents/test_idioms_agent.py
         """
-        directory = source_path.rsplit("/", 1)[0].split("/", 1)[1]
+        print(source_path)
+        directory = source_path.rsplit("/", 1)[0]
         filename = source_path.rsplit("/", 1)[1]
         return f"tests/{directory}/test_{filename}"
