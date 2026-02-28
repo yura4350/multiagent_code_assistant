@@ -3,7 +3,7 @@ Tests for TestingAgent
 Run with: python -m pytest tests/agents/test_testing_agent.py
 """
 import json
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock, mock_open, patch
 
 from src.agents.testing_agent import TestingAgent
 from src.models.issue import Issue
@@ -32,7 +32,7 @@ def test_tests_scan(mock_openai):
         make_mock_response(MOCK_ISSUES_JSON)
     )
     agent = TestingAgent()
-    
+
     # Mock _read_file to avoid actual disk access
     with patch.object(TestingAgent, '_read_file', return_value="for i in range(len(x)): pass"):
         issues = agent.scan("data/processor.py")
@@ -45,7 +45,7 @@ def test_tests_scan(mock_openai):
 def test_generate_suggestions_success(mock_openai_class):
     """Test the full flow of generating suggestions from issues."""
     mock_client = mock_openai_class.return_value
-    
+
     # The JSON the LLM returns
     mock_llm_content = json.dumps([{
         "issue": {"line": 10, "message": "Missing test", "severity": "warning", "rule_id": "test-gap", "column": 0},
@@ -54,17 +54,17 @@ def test_generate_suggestions_success(mock_openai_class):
         "rationale": "Testing return value",
         "confidence": 1.0
     }])
-    
+
     mock_client.chat.completions.create.return_value = make_mock_response(mock_llm_content)
 
     agent = TestingAgent()
-    
+
     # We create an issue that matches the rule_id in the mock JSON above
     sample_issue = Issue(
-        line=10, 
-        message="Missing test", 
-        severity="warning", 
-        rule_id="test-gap", 
+        line=10,
+        message="Missing test",
+        severity="warning",
+        rule_id="test-gap",
         column=0
     )
     sample_code = "def my_func():\n    pass"
@@ -75,7 +75,7 @@ def test_generate_suggestions_success(mock_openai_class):
     assert len(suggestions) == 1
     assert suggestions[0].issue.rule_id == "test-gap"
     assert "def test_my_func()" in suggestions[0].fixed_code
-    
+
     # Verify OpenAI was called correctly
     args, kwargs = mock_client.chat.completions.create.call_args
     assert kwargs["model"] == "GPT 4.1"
@@ -85,7 +85,7 @@ def test_generate_suggestions_success(mock_openai_class):
 def test_apply_suggestions_success(mock_file):
     """Test that apply() appends valid test code to the correct file."""
     agent = TestingAgent()
-    
+
     # 1. Create a valid suggestion (contains 'def test_')
     issue = Issue(line=5, message="msg", severity="info", rule_id="r1", column=0)
     valid_suggestion = Suggestion(
@@ -95,7 +95,7 @@ def test_apply_suggestions_success(mock_file):
         rationale="Adding missing test",
         confidence=1.0
     )
-    
+
     # 2. Create an invalid suggestion (fails validate() check)
     invalid_suggestion = Suggestion(
         issue=issue,
@@ -112,10 +112,10 @@ def test_apply_suggestions_success(mock_file):
     # 4. Assertions
     # Ensure it tried to open the correct file in append mode ('a')
     mock_file.assert_called_once_with("tests/test_dummy.py", "a", encoding="utf-8")
-    
+
     # Check that ONLY the valid code was written
     handle = mock_file()
     written_data = "".join(call.args[0] for call in handle.write.call_args_list)
-    
+
     assert "def test_new_feature()" in written_data
     assert "print('this is not a test')" not in written_data
