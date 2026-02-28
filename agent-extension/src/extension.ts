@@ -82,6 +82,33 @@ export function activate(context: vscode.ExtensionContext) {
 
 			const data = await response.json() as AnalyzeResponse;
 			outputChannel.appendLine(`Received ${data.issues.length} issue(s), ${data.suggestions.length} suggestion(s).`);
+
+			// Print each issue
+			if (data.issues.length > 0) {
+				outputChannel.appendLine('\n--- Issues ---');
+				for (const issue of data.issues) {
+					const col = issue.column !== null ? `:${issue.column}` : '';
+					outputChannel.appendLine(`  [${issue.severity}] Line ${issue.line}${col} (${issue.rule_id}): ${issue.message}`);
+				}
+			}
+
+			// Print each suggestion
+			if (data.suggestions.length > 0) {
+				outputChannel.appendLine('\n--- Suggestions ---');
+				for (const s of data.suggestions) {
+					outputChannel.appendLine(`\n  Rule: ${s.issue.rule_id} (Line ${s.issue.line})`);
+					outputChannel.appendLine(`  Rationale: ${s.rationale}`);
+					if (s.confidence !== null) {
+						outputChannel.appendLine(`  Confidence: ${(s.confidence * 100).toFixed(0)}%`);
+					}
+					if (s.original_code) {
+						outputChannel.appendLine(`  Before: ${s.original_code}`);
+					}
+					if (s.fixed_code) {
+						outputChannel.appendLine(`  After:  ${s.fixed_code}`);
+					}
+				}
+			}
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
 			outputChannel.appendLine(`Error: ${msg}`);
