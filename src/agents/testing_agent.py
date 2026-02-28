@@ -39,7 +39,8 @@ class TestingAgent(BaseAgent):
         test_scanner_prompt = f"""
         Role: You are a distinguished Python engineer specializing in test quality.
         Task: Analyze the given Python source file and its corresponding test file.
-            Identify functions or methods that are missing tests or have insufficient tests.
+            Identify functions or methods that are missing tests or 
+            have insufficient tests.
             Do NOT generate test code — only identify the gaps.
 
         Focus on:
@@ -159,7 +160,7 @@ class TestingAgent(BaseAgent):
         except OSError as e:
             logger.warning("Could not read file %s: %s", file_path, e)
             return ""
-        
+
     def _parse_issues(self, response: str) -> list[Issue]:
         """Parse LLM JSON response into a list of Issue objects."""
         try:
@@ -171,7 +172,7 @@ class TestingAgent(BaseAgent):
         except (json.JSONDecodeError, TypeError) as e:
             logger.error("Failed to parse issues from LLM response: %s", e)
             return []
-        
+
     def _parse_suggestions(
         self, response: str, issues: list[Issue]
     ) -> list[Suggestion]:

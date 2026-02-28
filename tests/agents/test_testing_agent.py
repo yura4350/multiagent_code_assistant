@@ -3,7 +3,7 @@ Tests for TestingAgent
 Run with: python -m pytest tests/agents/test_testing_agent.py
 """
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, mock_open
 
 from src.agents.testing_agent import TestingAgent
 from src.models.issue import Issue
@@ -80,3 +80,42 @@ def test_generate_suggestions_success(mock_openai_class):
     args, kwargs = mock_client.chat.completions.create.call_args
     assert kwargs["model"] == "GPT 4.1"
     assert "test-gap" in kwargs["messages"][0]["content"]
+
+@patch("builtins.open", new_callable=mock_open)
+def test_apply_suggestions_success(mock_file):
+    """Test that apply() appends valid test code to the correct file."""
+    agent = TestingAgent()
+    
+    # 1. Create a valid suggestion (contains 'def test_')
+    issue = Issue(line=5, message="msg", severity="info", rule_id="r1", column=0)
+    valid_suggestion = Suggestion(
+        issue=issue,
+        original_code="",
+        fixed_code="def test_new_feature():\n    assert True",
+        rationale="Adding missing test",
+        confidence=1.0
+    )
+    
+    # 2. Create an invalid suggestion (fails validate() check)
+    invalid_suggestion = Suggestion(
+        issue=issue,
+        original_code="",
+        fixed_code="print('this is not a test')",
+        rationale="Bad suggestion",
+        confidence=0.5
+    )
+
+    # 3. Mock the path resolution to return a dummy path
+    with patch.object(TestingAgent, '_get_test_file_path', return_value="tests/test_dummy.py"):
+        agent.apply([valid_suggestion, invalid_suggestion], "src/dummy.py")
+
+    # 4. Assertions
+    # Ensure it tried to open the correct file in append mode ('a')
+    mock_file.assert_called_once_with("tests/test_dummy.py", "a", encoding="utf-8")
+    
+    # Check that ONLY the valid code was written
+    handle = mock_file()
+    written_data = "".join(call.args[0] for call in handle.write.call_args_list)
+    
+    assert "def test_new_feature()" in written_data
+    assert "print('this is not a test')" not in written_data
