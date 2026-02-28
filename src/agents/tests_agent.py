@@ -75,12 +75,47 @@ class TestsAgent(BaseAgent):
         self, issues: list[Issue], code: str
     ) -> list[Suggestion]:
         """Generate suggested test code for identified gaps."""
-        # create prompt with source code and issues
-        # call LLM
-        # parse and return suggestions
+        client = OpenAI(
+            api_key=LLM_TOKEN,
+            base_url=LLM_API_URL,
+        )
+
+        issues_json = json.dumps([issue.model_dump() for issue in issues], indent=2)
+
+        test_suggestions_prompt = f"""
+        Role: You are a distinguished Python engineer at Big Tech.
+        Task: Based on the list of issues identifed in terms of the given Python
+                code ONLY for relevant test cases.
+        Generate suggestions where fixed_code contains the test function(s)
+
+        Return a suggestion.
+        Return ONLY a valid JSON array with no extra text, no markdown, no backticks.
+
+        Each element must have:
+        - "issue": {{object with line, message, severity, rule_id, column}}
+        - "original_code": string
+        - "fixed_code": string
+        - "rationale": string
+        - "confidence": float 0.0-1.0
+
+
+        Code to fix:
+        {code}
+        Issues to go through:
+        {issues_json}
+        """
+
+        response = client.chat.completions.create(
+            model="GPT 4.1",
+            messages=[{"role": "user", "content": test_suggestions_prompt}],
+        )
+
+        raw = response.choices[0].message.content
+        if raw:
+            logger.info("raw: %s", raw)
+            return self._parse_suggestions(raw, issues)
 
         return []
-
 
 
     def validate(self, suggestion: Suggestion) -> bool:
