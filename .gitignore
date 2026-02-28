@@ -231,3 +231,4 @@ extension/**/.env
 
 # OS files
 extension/**/.DS_Store
+.DS_Store
