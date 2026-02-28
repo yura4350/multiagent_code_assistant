@@ -232,3 +232,5 @@ extension/**/.env
 # OS files
 extension/**/.DS_Store
 .DS_Store
+# gitlab-ci-local
+.gitlab-ci-local
