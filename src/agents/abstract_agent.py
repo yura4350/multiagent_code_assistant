@@ -23,6 +23,6 @@ class BaseAgent(ABC):
         """Validate a suggestion"""
         pass
 
-    def apply(self, suggestion: Suggestion, file_path: str) -> None:  # TODO: Phase 2
+    def apply(self, suggestions: list[Suggestion], file_path: str) -> None:
         """Apply suggestion to file"""
         pass
