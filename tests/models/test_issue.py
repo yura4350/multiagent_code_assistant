@@ -3,7 +3,6 @@ Tests for Issue model
 Run with: python -m pytest tests/models/test_issue.py
 """
 
-import pytest
 from src.models.issue import Issue
 
 
