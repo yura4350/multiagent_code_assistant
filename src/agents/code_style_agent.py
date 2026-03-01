@@ -52,7 +52,7 @@ class StyleAgent(BaseAgent):
     Apply the suggestions to the code
     """
 
-    def apply(self, file_path: str) -> None:
+    def apply(self, suggestions: list[Suggestion] | None, file_path: str) -> None:
         self._run_ruff_fix(file_path)
         self._run_ruff_format(file_path)
 
