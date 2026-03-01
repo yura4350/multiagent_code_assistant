@@ -5,28 +5,42 @@ import os
 from openai import OpenAI
 
 from src.agents.abstract_agent import BaseAgent
+from src.model.llm_generator import LLMGenerator
+from src.model.prompt_registry import PromptRegistry
 from src.models.issue import Issue
 from src.models.suggestion import Suggestion
 
 logger = logging.getLogger(__name__)
-
-LLM_TOKEN = os.getenv("LITELLM_TOKEN")
-LLM_API_URL = os.getenv("LLM_API_URL", "https://litellm.oit.duke.edu/v1")
 
 
 class IdiomsAgent(BaseAgent):
     def __init__(self) -> None:
         super().__init__("Idiom")
 
+    def _get_client(self) -> OpenAI:
+        token = os.getenv("LITELLM_TOKEN")
+        if not token:
+            raise RuntimeError(
+                "Missing LITELLM_TOKEN. Put it in .env at project root or export it."
+            )
+
+        base_url = os.getenv("LLM_API_URL", "https://litellm.oit.duke.edu/v1")
+        return OpenAI(api_key=token, base_url=base_url)
+
+    def _get_model(self) -> str:
+        return os.getenv("MODEL_ID", "GPT 4.1")
+
     def scan(self, file_path: str) -> list[Issue]:
         """Scan the code for adherence to programming language idioms"""
         content = self._read_file(file_path)
+        client = self._get_client()
+        model = self._get_model()
 
-        # TODO: Replace with LLM Generator when ready
-        client = OpenAI(
-            api_key=LLM_TOKEN,
-            base_url=LLM_API_URL,
-        )
+        # # TODO: Replace with LLM Generator when ready. Removed for now
+        # client = OpenAI(
+        #     api_key=LLM_TOKEN,
+        #     base_url=LLM_API_URL,
+        # )
         idiom_scanner_prompt = f"""
         Role: You are a distinguished Python engineer
         Task: Analyze the given Python code ONLY for Pythonic idiom violations.
@@ -52,7 +66,7 @@ class IdiomsAgent(BaseAgent):
         """
 
         response = client.chat.completions.create(
-            model="GPT 4.1",
+            model=model,
             messages=[{"role": "user", "content": idiom_scanner_prompt}],
         )
 
@@ -63,54 +77,25 @@ class IdiomsAgent(BaseAgent):
 
         return []
 
-    def generate_suggestions(self, issues: list[Issue], code: str) -> list[Suggestion]:
+    def get_suggestions(self, issues: list[Issue], code: str) -> list[Suggestion]:
         """Provide suggestions based on the scanned file and identified issues"""
-        # create the prompt
-        # Initiate generator
+        client = self._get_client()
+        model = self._get_model()
 
-        # TODO: Replace with LLM Generator when ready
-        client = OpenAI(
-            api_key=LLM_TOKEN,
-            base_url=LLM_API_URL,
+        llm_generator = LLMGenerator(
+            client=client, model=model, prompt_registry=PromptRegistry()
         )
 
-        issues_json = json.dumps([issue.model_dump() for issue in issues], indent=2)
+        context = {
+            "code": code,
+            "issues_json": json.dumps(
+                [issue.model_dump() for issue in issues], indent=2
+            ),
+        }
 
-        idiom_scanner_prompt = f"""
-        Role: You are a distinguished Python engineer at Big Tech.
-        Task: Based on the list of issues identifed in terms of the given Python
-                code ONLY for Pythonic idiom violations.
-        Generate suggestions for improvement
-
-        Return a suggestion.
-        Return ONLY a valid JSON array with no extra text, no markdown, no backticks.
-
-        Each element must have:
-        - "issue": {{object with line, message, severity, rule_id, column}}
-        - "original_code": string
-        - "fixed_code": string
-        - "rationale": string
-        - "confidence": float 0.0-1.0
-
-
-        Code to fix:
-        {code}
-        Issues to go through:
-        {issues_json}
-
-        """
-
-        response = client.chat.completions.create(
-            model="GPT 4.1",
-            messages=[{"role": "user", "content": idiom_scanner_prompt}],
+        return llm_generator.generate_suggestions(
+            prompt_name="idioms.suggestions", context=context, issues=issues
         )
-
-        raw = response.choices[0].message.content
-        if raw:
-            logger.info("raw: %s", raw)
-            return self._parse_suggestions(raw, issues)
-
-        return []
 
     def validate(self, suggestion: Suggestion) -> bool:
         return super().validate(suggestion)
@@ -120,12 +105,14 @@ class IdiomsAgent(BaseAgent):
         Suggestion contains an issue with original code and fixed code.
         This functions aggregates these suggestions and provides updated code.
         """
+        client = self._get_client()
+        model = self._get_model()
 
         # TODO: Replace with LLM Generator when ready
-        client = OpenAI(
-            api_key=LLM_TOKEN,
-            base_url=LLM_API_URL,
-        )
+        # client = OpenAI(
+        #     api_key=LLM_TOKEN,
+        #     base_url=LLM_API_URL,
+        # )
 
         suggestions_json = json.dumps([s.model_dump() for s in suggestions], indent=2)
         code = self._read_file(file_path)
@@ -144,7 +131,7 @@ class IdiomsAgent(BaseAgent):
         with no extra text, no markdown, no backticks.
         """
         response = client.chat.completions.create(
-            model="GPT 4.1",
+            model=model,
             messages=[{"role": "user", "content": idiom_apply_suggestion_prompt}],
         )
 
@@ -172,39 +159,6 @@ class IdiomsAgent(BaseAgent):
             return issues
         except (json.JSONDecodeError, TypeError) as e:
             logger.error("Failed to parse issues from LLM response: %s", e)
-            return []
-
-    def _parse_suggestions(
-        self, response: str, issues: list[Issue]
-    ) -> list[Suggestion]:
-        """Parse LLM JSON response into a list of Suggestion objects."""
-        try:
-            clean = response.strip().removeprefix("```json").removesuffix("```").strip()
-            data = json.loads(clean)
-            issue_map = {issue.rule_id: issue for issue in issues}
-            suggestions = []
-            for item in data:
-                rule_id = item.get("issue", {}).get("rule_id")
-                issue = issue_map.get(rule_id)
-                if not issue:
-                    logger.warning(
-                        "No matching issue for rule_id %s, skipping.", rule_id
-                    )
-                    continue
-                suggestions.append(
-                    Suggestion(
-                        issue=issue,
-                        original_code=item.get("original_code")
-                        or item.get("original code"),
-                        fixed_code=item.get("fixed_code") or item.get("fixed code"),
-                        rationale=item.get("rationale", ""),
-                        confidence=item.get("confidence"),
-                    )
-                )
-            logger.info("Parsed %d suggestions from LLM response", len(suggestions))
-            return suggestions
-        except (json.JSONDecodeError, TypeError) as e:
-            logger.error("Failed to parse suggestions from LLM response: %s", e)
             return []
 
     def _parse_applied_suggestion(self, response: str, file_path: str) -> None:

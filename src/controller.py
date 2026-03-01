@@ -1,6 +1,7 @@
 import logging
 
 from src.agents.code_style_agent import StyleAgent
+from src.agents.idioms_agent import IdiomsAgent
 from src.model.input import ParsedInput, parse_input
 from src.model.planner import plan
 from src.models.issue import Issue
@@ -19,6 +20,8 @@ class Controller:
 
         if agent_name == "CODE_STYLE":
             agent = StyleAgent()
+        elif agent_name == "IDIOMS":
+            agent = IdiomsAgent()
         else:
             raise ValueError(f"Unknown agent: {agent_name}")
 
@@ -26,7 +29,7 @@ class Controller:
         logger.info("Found %d issue(s).", len(issues))
         self._log_issues(issues)
 
-        suggestions = agent.generate_suggestions(issues, planned_input.file_content)
+        suggestions = agent.get_suggestions(issues, planned_input.file_content)
         logger.info("Generated %d suggestion(s).", len(suggestions))
         self._log_suggestions(suggestions)
 

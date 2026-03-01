@@ -26,7 +26,7 @@ class StyleAgent(BaseAgent):
     FOR RUFF LINTER - LOGGING
     """
 
-    def generate_suggestions(self, issues: list[Issue], code: str) -> list[Suggestion]:
+    def get_suggestions(self, issues: list[Issue], code: str) -> list[Suggestion]:
         suggestions: list[Suggestion] = []
 
         for issue in issues:

@@ -75,7 +75,7 @@ class TestingAgent(BaseAgent):
 
         return []
 
-    def generate_suggestions(
+    def get_suggestions(
         self, issues: list[Issue], code: str
     ) -> list[Suggestion]:
         """Generate suggested test code for identified gaps."""

@@ -42,7 +42,7 @@ def test_tests_scan(mock_openai):
     assert issues[0].rule_id == "range_len_enumerate"
 
 @patch("src.agents.testing_agent.OpenAI")
-def test_generate_suggestions_success(mock_openai_class):
+def test_get_suggestions_success(mock_openai_class):
     """Test the full flow of generating suggestions from issues."""
     mock_client = mock_openai_class.return_value
 
@@ -69,7 +69,7 @@ def test_generate_suggestions_success(mock_openai_class):
     )
     sample_code = "def my_func():\n    pass"
 
-    suggestions = agent.generate_suggestions([sample_issue], sample_code)
+    suggestions = agent.get_suggestions([sample_issue], sample_code)
 
     # Assertions
     assert len(suggestions) == 1

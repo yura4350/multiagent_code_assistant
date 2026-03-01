@@ -14,7 +14,7 @@ class BaseAgent(ABC):
         pass
 
     @abstractmethod
-    def generate_suggestions(self, issues: list[Issue], code: str) -> list[Suggestion]:
+    def get_suggestions(self, issues: list[Issue], code: str) -> list[Suggestion]:
         """Generate fix suggestions for given issues"""
         pass
 
