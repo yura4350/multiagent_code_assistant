@@ -45,7 +45,7 @@ async def analyze(request: AnalyzeRequest):
         for agent_class in agents_to_run:
             agent = agent_class()
             issues = agent.scan(temp_path)
-            suggestions = agent.generate_suggestions(issues, request.file_content)
+            suggestions = agent.get_suggestions(issues, request.file_content)
             all_issues.extend(issues)
             all_suggestions.extend(suggestions)
         return {
