@@ -1,6 +1,7 @@
 import logging
 
 from src.agents.code_style_agent import StyleAgent
+from src.agents.idioms_agent import IdiomsAgent
 from src.model.input import ParsedInput, parse_input
 from src.model.planner import plan
 from src.models.issue import Issue
@@ -19,6 +20,8 @@ class Controller:
 
         if agent_name == "CODE_STYLE":
             agent = StyleAgent()
+        elif agent_name == "IDIOMS":
+            agent = IdiomsAgent()
         else:
             raise ValueError(f"Unknown agent: {agent_name}")
 
