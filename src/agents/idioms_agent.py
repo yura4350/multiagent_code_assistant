@@ -18,15 +18,30 @@ class IdiomsAgent(BaseAgent):
     def __init__(self) -> None:
         super().__init__("Idiom")
 
+    def _get_client(self) -> OpenAI:
+        token = os.getenv("LITELLM_TOKEN")
+        if not token:
+            raise RuntimeError(
+                "Missing LITELLM_TOKEN. Put it in .env at project root or export it."
+            )
+
+        base_url = os.getenv("LLM_API_URL", "https://litellm.oit.duke.edu/v1")
+        return OpenAI(api_key=token, base_url=base_url)
+
+    def _get_model(self) -> str:
+        return os.getenv("MODEL_ID", "GPT 4.1")
+
     def scan(self, file_path: str) -> list[Issue]:
         """Scan the code for adherence to programming language idioms"""
         content = self._read_file(file_path)
+        client = self._get_client()
+        model = self._get_model()
 
-        # TODO: Replace with LLM Generator when ready
-        client = OpenAI(
-            api_key=LLM_TOKEN,
-            base_url=LLM_API_URL,
-        )
+        # # TODO: Replace with LLM Generator when ready. Removed for now
+        # client = OpenAI(
+        #     api_key=LLM_TOKEN,
+        #     base_url=LLM_API_URL,
+        # )
         idiom_scanner_prompt = f"""
         Role: You are a distinguished Python engineer
         Task: Analyze the given Python code ONLY for Pythonic idiom violations.
@@ -52,7 +67,7 @@ class IdiomsAgent(BaseAgent):
         """
 
         response = client.chat.completions.create(
-            model="GPT 4.1",
+            model=model,
             messages=[{"role": "user", "content": idiom_scanner_prompt}],
         )
 
@@ -67,12 +82,14 @@ class IdiomsAgent(BaseAgent):
         """Provide suggestions based on the scanned file and identified issues"""
         # create the prompt
         # Initiate generator
+        client = self._get_client()
+        model = self._get_model()
 
         # TODO: Replace with LLM Generator when ready
-        client = OpenAI(
-            api_key=LLM_TOKEN,
-            base_url=LLM_API_URL,
-        )
+        # client = OpenAI(
+        #     api_key=LLM_TOKEN,
+        #     base_url=LLM_API_URL,
+        # )
 
         issues_json = json.dumps([issue.model_dump() for issue in issues], indent=2)
 
@@ -101,7 +118,7 @@ class IdiomsAgent(BaseAgent):
         """
 
         response = client.chat.completions.create(
-            model="GPT 4.1",
+            model=model,
             messages=[{"role": "user", "content": idiom_scanner_prompt}],
         )
 
@@ -120,12 +137,14 @@ class IdiomsAgent(BaseAgent):
         Suggestion contains an issue with original code and fixed code.
         This functions aggregates these suggestions and provides updated code.
         """
+        client = self._get_client()
+        model = self._get_model()
 
         # TODO: Replace with LLM Generator when ready
-        client = OpenAI(
-            api_key=LLM_TOKEN,
-            base_url=LLM_API_URL,
-        )
+        # client = OpenAI(
+        #     api_key=LLM_TOKEN,
+        #     base_url=LLM_API_URL,
+        # )
 
         suggestions_json = json.dumps([s.model_dump() for s in suggestions], indent=2)
         code = self._read_file(file_path)
@@ -144,7 +163,7 @@ class IdiomsAgent(BaseAgent):
         with no extra text, no markdown, no backticks.
         """
         response = client.chat.completions.create(
-            model="GPT 4.1",
+            model=model,
             messages=[{"role": "user", "content": idiom_apply_suggestion_prompt}],
         )
 
