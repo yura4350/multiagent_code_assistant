@@ -29,7 +29,7 @@ class Controller:
         logger.info("Found %d issue(s).", len(issues))
         self._log_issues(issues)
 
-        suggestions = agent.generate_suggestions(issues, planned_input.file_content)
+        suggestions = agent.get_suggestions(issues, planned_input.file_content)
         logger.info("Generated %d suggestion(s).", len(suggestions))
         self._log_suggestions(suggestions)
 
