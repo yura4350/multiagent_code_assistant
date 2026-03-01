@@ -4,7 +4,9 @@ from pathlib import Path
 class PromptRegistry:
     def __init__(self, prompts_dir: Path | None = None) -> None:
         # project_root/prompts
-        self.prompts_dir = prompts_dir or Path(__file__).resolve().parents[2] / "prompts"
+        self.prompts_dir = (
+            prompts_dir or Path(__file__).resolve().parents[2] / "prompts"
+        )
 
         self._name_to_file = {
             "idioms.suggestions": "suggestions.txt",

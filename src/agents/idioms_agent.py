@@ -5,13 +5,13 @@ import os
 from openai import OpenAI
 
 from src.agents.abstract_agent import BaseAgent
+from src.model.llm_generator import LLMGenerator
+from src.model.prompt_registry import PromptRegistry
 from src.models.issue import Issue
 from src.models.suggestion import Suggestion
 
-from src.model.llm_generator import LLMGenerator
-from src.model.prompt_registry import PromptRegistry
-
 logger = logging.getLogger(__name__)
+
 
 class IdiomsAgent(BaseAgent):
     def __init__(self) -> None:
@@ -82,11 +82,20 @@ class IdiomsAgent(BaseAgent):
         client = self._get_client()
         model = self._get_model()
 
-        llm_generator = LLMGenerator(client=client, model=model, prompt_registry=PromptRegistry())
+        llm_generator = LLMGenerator(
+            client=client, model=model, prompt_registry=PromptRegistry()
+        )
 
-        context = {"code": code, "issues_json": json.dumps([issue.model_dump() for issue in issues], indent=2)}
+        context = {
+            "code": code,
+            "issues_json": json.dumps(
+                [issue.model_dump() for issue in issues], indent=2
+            ),
+        }
 
-        return llm_generator.generate_suggestions(prompt_name="idioms.suggestions", context=context, issues=issues)
+        return llm_generator.generate_suggestions(
+            prompt_name="idioms.suggestions", context=context, issues=issues
+        )
 
     def validate(self, suggestion: Suggestion) -> bool:
         return super().validate(suggestion)
