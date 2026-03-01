@@ -4,30 +4,38 @@ from src.models.issue import Issue
 from src.models.suggestion import Suggestion
 import logging
 
+from src.model.prompt_registry import PromptRegistry
+
 logger = logging.getLogger(__name__)
 
 class LLMGenerator:
-    def __init__(self, client: OpenAI, model: str, issues: list[Issue], code: str, prompt: str):
+    def __init__(self, client: OpenAI, model: str, prompt_registry: PromptRegistry):
         """Initialize the LLMGenerator"""
         self.client = client
         self.model = model
-        self.issues = issues
-        self.code = code
-        self.prompt = prompt
+        self.prompt_registry = prompt_registry
     
-    def generate_suggestions(self) -> list[Suggestion]:
+    def generate_suggestions(self, prompt_name: str, context: dict, issues: list[Issue]) -> list[Suggestion]:
+        template = self.prompt_registry.load(prompt_name)
+        prompt = self._render_prompt(template, context)
 
         response = self.client.chat.completions.create(
             model = self.model,
-            messages=[{"role": "user", "content": self.prompt}],
+            messages=[{"role": "user", "content": prompt}],
         )
 
         raw = response.choices[0].message.content
         if raw:
             logger.info("raw: %s", raw)
-            return self._parse_suggestions(raw, self.issues)
+            return self._parse_suggestions(raw, issues)
 
         return []
+    
+    def _render(self, template: str, context: dict[str, str]) -> str:
+        rendered = template
+        for key, value in context.items():
+            rendered = rendered.replace(f"{{{{ {key} }}}}", value)
+        return rendered
     
     def _parse_suggestions(
         self, response: str, issues: list[Issue]
