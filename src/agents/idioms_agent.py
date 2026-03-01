@@ -8,11 +8,9 @@ from src.agents.abstract_agent import BaseAgent
 from src.models.issue import Issue
 from src.models.suggestion import Suggestion
 
+from src.model.llm_generator import LLMGenerator
+
 logger = logging.getLogger(__name__)
-
-LLM_TOKEN = os.getenv("LITELLM_TOKEN")
-LLM_API_URL = os.getenv("LLM_API_URL", "https://litellm.oit.duke.edu/v1")
-
 
 class IdiomsAgent(BaseAgent):
     def __init__(self) -> None:
@@ -78,22 +76,14 @@ class IdiomsAgent(BaseAgent):
 
         return []
 
-    def generate_suggestions(self, issues: list[Issue], code: str) -> list[Suggestion]:
+    def get_suggestions(self, issues: list[Issue], code: str) -> list[Suggestion]:
         """Provide suggestions based on the scanned file and identified issues"""
-        # create the prompt
-        # Initiate generator
         client = self._get_client()
         model = self._get_model()
 
-        # TODO: Replace with LLM Generator when ready
-        # client = OpenAI(
-        #     api_key=LLM_TOKEN,
-        #     base_url=LLM_API_URL,
-        # )
-
         issues_json = json.dumps([issue.model_dump() for issue in issues], indent=2)
 
-        idiom_scanner_prompt = f"""
+        idiom_suggestions_prompt = f"""
         Role: You are a distinguished Python engineer at Big Tech.
         Task: Based on the list of issues identifed in terms of the given Python
                 code ONLY for Pythonic idiom violations.
@@ -117,17 +107,8 @@ class IdiomsAgent(BaseAgent):
 
         """
 
-        response = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": idiom_scanner_prompt}],
-        )
-
-        raw = response.choices[0].message.content
-        if raw:
-            logger.info("raw: %s", raw)
-            return self._parse_suggestions(raw, issues)
-
-        return []
+        llm_generator = LLMGenerator(client, model, issues, code, idiom_suggestions_prompt)
+        return llm_generator.generate_suggestions()
 
     def validate(self, suggestion: Suggestion) -> bool:
         return super().validate(suggestion)
@@ -191,39 +172,6 @@ class IdiomsAgent(BaseAgent):
             return issues
         except (json.JSONDecodeError, TypeError) as e:
             logger.error("Failed to parse issues from LLM response: %s", e)
-            return []
-
-    def _parse_suggestions(
-        self, response: str, issues: list[Issue]
-    ) -> list[Suggestion]:
-        """Parse LLM JSON response into a list of Suggestion objects."""
-        try:
-            clean = response.strip().removeprefix("```json").removesuffix("```").strip()
-            data = json.loads(clean)
-            issue_map = {issue.rule_id: issue for issue in issues}
-            suggestions = []
-            for item in data:
-                rule_id = item.get("issue", {}).get("rule_id")
-                issue = issue_map.get(rule_id)
-                if not issue:
-                    logger.warning(
-                        "No matching issue for rule_id %s, skipping.", rule_id
-                    )
-                    continue
-                suggestions.append(
-                    Suggestion(
-                        issue=issue,
-                        original_code=item.get("original_code")
-                        or item.get("original code"),
-                        fixed_code=item.get("fixed_code") or item.get("fixed code"),
-                        rationale=item.get("rationale", ""),
-                        confidence=item.get("confidence"),
-                    )
-                )
-            logger.info("Parsed %d suggestions from LLM response", len(suggestions))
-            return suggestions
-        except (json.JSONDecodeError, TypeError) as e:
-            logger.error("Failed to parse suggestions from LLM response: %s", e)
             return []
 
     def _parse_applied_suggestion(self, response: str, file_path: str) -> None:
