@@ -9,6 +9,7 @@ from src.models.issue import Issue
 from src.models.suggestion import Suggestion
 
 from src.model.llm_generator import LLMGenerator
+from src.model.prompt_registry import PromptRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -81,34 +82,11 @@ class IdiomsAgent(BaseAgent):
         client = self._get_client()
         model = self._get_model()
 
-        issues_json = json.dumps([issue.model_dump() for issue in issues], indent=2)
+        llm_generator = LLMGenerator(client=client, model=model, prompt_registry=PromptRegistry())
 
-        idiom_suggestions_prompt = f"""
-        Role: You are a distinguished Python engineer at Big Tech.
-        Task: Based on the list of issues identifed in terms of the given Python
-                code ONLY for Pythonic idiom violations.
-        Generate suggestions for improvement
+        context = {"code": code, "issues_json": json.dumps([issue.model_dump() for issue in issues], indent=2)}
 
-        Return a suggestion.
-        Return ONLY a valid JSON array with no extra text, no markdown, no backticks.
-
-        Each element must have:
-        - "issue": {{object with line, message, severity, rule_id, column}}
-        - "original_code": string
-        - "fixed_code": string
-        - "rationale": string
-        - "confidence": float 0.0-1.0
-
-
-        Code to fix:
-        {code}
-        Issues to go through:
-        {issues_json}
-
-        """
-
-        llm_generator = LLMGenerator(client, model, issues, code, idiom_suggestions_prompt)
-        return llm_generator.generate_suggestions()
+        return llm_generator.generate_suggestions(prompt_name="idioms.suggestions", context=context, issues=issues)
 
     def validate(self, suggestion: Suggestion) -> bool:
         return super().validate(suggestion)
