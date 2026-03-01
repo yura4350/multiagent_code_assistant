@@ -16,8 +16,6 @@ class LLMGenerator:
         self.prompt = prompt
     
     def generate_suggestions(self) -> list[Suggestion]:
-        """Generate suggestions based on the scanned file and identified issues"""
-        issues_json = json.dumps([issue.model_dump() for issue in self.issues], indent=2)
 
         response = self.client.chat.completions.create(
             model = self.model,
