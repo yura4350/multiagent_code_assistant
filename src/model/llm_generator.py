@@ -31,7 +31,7 @@ class LLMGenerator:
 
         return []
     
-    def _render(self, template: str, context: dict[str, str]) -> str:
+    def _render_prompt(self, template: str, context: dict[str, str]) -> str:
         rendered = template
         for key, value in context.items():
             rendered = rendered.replace(f"{{{{ {key} }}}}", value)
