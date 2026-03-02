@@ -1,7 +1,7 @@
 import requests
 
 backend_url = "http://localhost:4003"  # Local URL
-# backend_url = "http://vcm-52527.vm.duke.edu:4003" # VM URL
+# backend_url = "http://vcm-52527.vm.duke.edu:4003" # dev server VM URL
 payload = {
     "file_content": open("data/sample_bad_idioms.py", encoding="utf-8").read(),
     "file_name": "data/sample_bad_idioms.py",
