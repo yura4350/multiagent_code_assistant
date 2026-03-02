@@ -1,0 +1,14 @@
+services:
+  backend:
+    build: "."
+    container_name: agents-backend
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "4003:8000" # Expose port 8000 of the container to port 4003 on the host
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 40s
