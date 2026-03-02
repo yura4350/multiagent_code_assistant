@@ -7,8 +7,7 @@ payload = {
     "agent": "IDIOMS",
 }
 
-r = requests.post(f"{backend_url}/analyze", json=payload, timeout=60)
+r = requests.post(f"{backend_url}/agents/IDIOMS/scan", json=payload, timeout=60)
 r.raise_for_status()
 data = r.json()
 print("issues:", len(data["issues"]))
-print("suggestions:", len(data["suggestions"]))
