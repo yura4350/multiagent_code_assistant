@@ -6,6 +6,10 @@ from dotenv import load_dotenv
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler("phase2_log.txt")
+    ]
 )
 
 logger = logging.getLogger(__name__)
