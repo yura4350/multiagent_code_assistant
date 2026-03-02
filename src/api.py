@@ -1,14 +1,13 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
 import os
 import tempfile
-from typing import Any
+
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
 from src.agents.code_style_agent import StyleAgent
 from src.agents.idioms_agent import IdiomsAgent
 from src.agents.testing_agent import TestingAgent
 from src.models.issue import Issue
-from src.models.suggestion import Suggestion
 
 app = FastAPI()
 
@@ -21,24 +20,31 @@ AGENT_REGISTRY = {
 
 # Request / Response models
 
+
 class AnalyzeRequest(BaseModel):
     file_content: str
     file_name: str = "temp.py"
     agent: str | None = None  # None will run all agents
 
+
 class ScanRequest(BaseModel):
     file_content: str
     file_name: str = "temp.py"
 
+
 class ScanResponse(BaseModel):
     issues: list[Issue]
+
 
 # Helper functions
 def _get_agent(agent_name: str):
     agent_class = AGENT_REGISTRY.get(agent_name)
     if agent_class is None:
-        raise HTTPException(status_code=400, detail=f"Unknown/unsupported agent: {agent_name}")
+        raise HTTPException(
+            status_code=400, detail=f"Unknown/unsupported agent: {agent_name}"
+        )
     return agent_class()
+
 
 def _scan(agent, file_content: str, file_name: str) -> list[Issue]:
     """
@@ -69,11 +75,13 @@ def _write_temp_source_file(file_content: str, file_name: str) -> str:
 
 # Endpoints
 
+
 @app.post("/agents/{agent}/scan", response_model=ScanResponse)
 def scan_endpoint(agent: str, request: ScanRequest):
     a = _get_agent(agent)
     issues = _scan(a, request.file_content, request.file_name)
     return ScanResponse(issues=issues)
+
 
 # Analyze code and return issues and suggestions
 @app.post("/analyze")
@@ -108,6 +116,7 @@ def analyze(request: AnalyzeRequest):
         }
     finally:
         os.unlink(temp_path)
+
 
 # Simple health check endpoint
 @app.get("/health")
