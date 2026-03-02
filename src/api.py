@@ -6,13 +6,14 @@ from pydantic import BaseModel
 
 from src.agents.code_style_agent import StyleAgent
 from src.agents.idioms_agent import IdiomsAgent
+from src.agents.testing_agent import TestingAgent
 
 app = FastAPI()
 
 AGENT_REGISTRY = {
     "CODE_STYLE": StyleAgent,
     "IDIOMS": IdiomsAgent,
-    "TESTS": None,  # Placeholder for TestAgent
+    "TESTS": TestingAgent,  # Placeholder for TestAgent
     "DESIGN": None,  # Placeholder for DesignAgent
 }
 
