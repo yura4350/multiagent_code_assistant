@@ -3,3 +3,11 @@ pytest-cov
 pylint
 ruff
 pydantic
+bandit
+fastapi
+uvicorn
+httpx
+openai
+python-dotenv
+requests
+

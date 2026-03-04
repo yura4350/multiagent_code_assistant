@@ -3,7 +3,6 @@ Tests for StyleAgent
 Run with: python -m pytest tests/agents/test_code_style_agent.py
 """
 
-import pytest
 from src.agents.code_style_agent import StyleAgent
 
 

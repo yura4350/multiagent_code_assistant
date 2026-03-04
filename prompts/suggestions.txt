@@ -1,0 +1,17 @@
+Role: You are a distinguished Python engineer at Big Tech.
+Task: Based on the list of issues identified in the given Python code ONLY for Pythonic idiom violations, generate suggestions for improvement.
+
+Return ONLY a valid JSON array with no extra text, no markdown, no backticks.
+
+Each element must have:
+- "issue": {object with line, message, severity, rule_id, column}
+- "original_code": string
+- "fixed_code": string
+- "rationale": string
+- "confidence": float 0.0-1.0
+
+Code to fix:
+{{ code }}
+
+Issues to go through:
+{{ issues_json }}

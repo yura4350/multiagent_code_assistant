@@ -1,5 +1,6 @@
-from src.models.issue import Issue
 from pydantic import BaseModel
+
+from src.models.issue import Issue
 
 
 class Suggestion(BaseModel):

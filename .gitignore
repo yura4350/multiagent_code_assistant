@@ -214,3 +214,23 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Dependencies
+**/node_modules/
+
+# Build output
+extension/**/out/
+extension/**/dist/
+*.vsix
+
+# Python virtual environment
+extension/**/venv/
+
+# Environment variables
+extension/**/.env
+
+# OS files
+extension/**/.DS_Store
+.DS_Store
+# gitlab-ci-local
+.gitlab-ci-local

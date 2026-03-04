@@ -1,14 +1,13 @@
-import subprocess
 import json
 import logging
+import subprocess
 
 from src.agents.abstract_agent import BaseAgent
 from src.models.issue import Issue
 from src.models.suggestion import Suggestion
 
-import re
-
 logger = logging.getLogger(__name__)
+
 
 class StyleAgent(BaseAgent):
     def __init__(self) -> None:
@@ -17,15 +16,17 @@ class StyleAgent(BaseAgent):
     """
     Scan the code for the linting issues
     """
+
     def scan(self, file_path: str) -> list[Issue]:
         lint_results = self._run_ruff_check(file_path)
         return self._parse_ruff_output(lint_results)
-    
+
     """
     Generate suggestions for the linting issues.
     FOR RUFF LINTER - LOGGING
     """
-    def generate_suggestions(self, issues: list[Issue], code: str) -> list[Suggestion]:
+
+    def get_suggestions(self, issues: list[Issue], code: str) -> list[Suggestion]:
         suggestions: list[Suggestion] = []
 
         for issue in issues:
@@ -38,21 +39,23 @@ class StyleAgent(BaseAgent):
             )
 
         return suggestions
-    
+
     """
     Validate the suggestions
     """
+
     def validate(self, issues: list[Issue]) -> bool:
         """Valid when there are no remaining lint issues."""
         return len(issues) == 0
-    
+
     """
     Apply the suggestions to the code
     """
-    def apply(self, file_path: str) -> None:
+
+    def apply(self, suggestions: list[Suggestion] | None, file_path: str) -> None:
         self._run_ruff_fix(file_path)
         self._run_ruff_format(file_path)
-    
+
     def _run_ruff_check(self, file_path: str) -> list[dict]:
         try:
             result = subprocess.run(
@@ -80,7 +83,7 @@ class StyleAgent(BaseAgent):
         except json.JSONDecodeError:
             logger.warning("Could not parse Ruff JSON output.")
             return []
-    
+
     def _parse_ruff_output(self, linting_issues: list[dict]) -> list[Issue]:
         if not linting_issues:
             return []
@@ -105,7 +108,7 @@ class StyleAgent(BaseAgent):
             )
 
         return issues
-    
+
     def _run_ruff_fix(self, file_path: str) -> None:
         result = subprocess.run(
             ["ruff", "check", file_path, "--fix"],
@@ -137,6 +140,7 @@ class StyleAgent(BaseAgent):
     """
     Pylint functions not used
     """
+
     def _run_pylint(self, file_path: str) -> list[dict]:
         try:
             result = subprocess.run(

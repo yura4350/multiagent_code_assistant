@@ -1,0 +1,16 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY src/ ./src/
+COPY data/ ./data/
+COPY prompts/ ./prompts/
+
+EXPOSE 8000
+
+# CMD ["python", "-m", "src.main", "--help"]
+# CMD ["python", "-c", "import src.main; print('OK')"]
+CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]

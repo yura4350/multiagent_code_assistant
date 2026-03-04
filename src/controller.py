@@ -1,7 +1,9 @@
 import logging
 
 from src.agents.code_style_agent import StyleAgent
-from src.model.input import parse_input, ParsedInput
+from src.agents.idioms_agent import IdiomsAgent
+from src.agents.testing_agent import TestingAgent
+from src.model.input import ParsedInput, parse_input
 from src.model.planner import plan
 from src.models.issue import Issue
 from src.models.suggestion import Suggestion
@@ -19,6 +21,10 @@ class Controller:
 
         if agent_name == "CODE_STYLE":
             agent = StyleAgent()
+        elif agent_name == "IDIOMS":
+            agent = IdiomsAgent()
+        elif agent_name == "TESTS":
+            agent = TestingAgent()
         else:
             raise ValueError(f"Unknown agent: {agent_name}")
 
@@ -26,13 +32,13 @@ class Controller:
         logger.info("Found %d issue(s).", len(issues))
         self._log_issues(issues)
 
-        suggestions = agent.generate_suggestions(issues, planned_input.file_content)
+        suggestions = agent.get_suggestions(issues, planned_input.file_content)
         logger.info("Generated %d suggestion(s).", len(suggestions))
         self._log_suggestions(suggestions)
 
         if planned_input.apply:
             logger.info("Applying auto-fixes")
-            agent.apply(planned_input.file_path)
+            agent.apply(suggestions,planned_input.file_path)
             issues = agent.scan(planned_input.file_path)  # rescan current state only
 
         is_valid = agent.validate(issues)
@@ -44,7 +50,7 @@ class Controller:
         )
 
         self._log_issues(issues)
-    
+
     def _log_issues(self, issues: list[Issue]):
         if issues:
             for issue in issues:
@@ -56,7 +62,7 @@ class Controller:
                     issue.rule_id,
                     issue.message,
                 )
-    
+
     def _log_suggestions(self, suggestions: list[Suggestion]):
         if suggestions:
             for suggestion in suggestions:
@@ -68,7 +74,7 @@ class Controller:
                     suggestion.issue.rule_id,
                     suggestion.issue.message,
                 )
-    
+
     def _log_parsed_input(self, parsed_input: ParsedInput):
         logger.info(
             "Parsed input: agent=%s, file=%s, apply=%s",
