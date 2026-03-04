@@ -97,8 +97,8 @@ class IdiomsAgent(BaseAgent):
             prompt_name="idioms.suggestions", context=context, issues=issues
         )
 
-    def validate(self, suggestion: Suggestion) -> bool:
-        return super().validate(suggestion)
+    def validate(self, issues: list[Issue]) -> bool:
+        return len(issues) == 0
 
     def apply(self, suggestions: list[Suggestion], file_path: str) -> None:
         """
