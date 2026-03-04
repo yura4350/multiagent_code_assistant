@@ -58,6 +58,11 @@ class ApplyResponse(BaseModel):
     # Issues remaining after the fix has been applied
     remaining_issues: list[Issue]
 
+class ValidateRequest(BaseModel):
+    issues: list[Issue]
+
+class ValidateResponse(BaseModel):
+    is_valid: bool
 
 # Helper functions
 def _get_agent(agent_name: str):
@@ -128,7 +133,7 @@ def suggest_endpoint(agent: str, request: SuggestRequest):
     return SuggestResponse(suggestions=suggestions)
 
 
-# Endpoints - Apply
+# Endpoints - apply
 @app.post("/agents/{agents}/apply", response_model=ApplyResponse)
 def apply_endpoint(agent: str, request: ApplyRequest):
     """
@@ -142,6 +147,14 @@ def apply_endpoint(agent: str, request: ApplyRequest):
     # Re-scan the fixed content so the caller knows what (if anything) is left
     remaining_issues = _scan(a, fixed_content, request.file_name)
     return ApplyResponse(fixed_content=fixed_content, remaining_issues=remaining_issues)
+
+# Endpoints - validate
+@app.post("/agents/{agents}/validate", response_model=ValidateResponse)
+def validate_endpoint(agent: str, request: ValidateRequest): 
+    """Validates the agent identified proper issues."""
+    a = _get_agent(agent)
+    is_valid = a.validate(request.issues)
+    return ValidateResponse(is_valid=is_valid)
 
 
 # Analyze code and return issues and suggestions
