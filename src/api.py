@@ -8,6 +8,7 @@ from src.agents.code_style_agent import StyleAgent
 from src.agents.idioms_agent import IdiomsAgent
 from src.agents.testing_agent import TestingAgent
 from src.models.issue import Issue
+from src.models.suggestion import Suggestion
 
 app = FastAPI()
 
@@ -19,7 +20,6 @@ AGENT_REGISTRY = {
 }
 
 # Request / Response models
-
 
 class AnalyzeRequest(BaseModel):
     file_content: str
@@ -34,6 +34,15 @@ class ScanRequest(BaseModel):
 
 class ScanResponse(BaseModel):
     issues: list[Issue]
+
+class SuggestRequest(BaseModel):
+    file_content: str
+    file_name: str = "temp.py"
+    issues: list[Issue]
+
+
+class SuggestResponse(BaseModel):
+    suggestions: list[Suggestion]
 
 
 # Helper functions
@@ -73,14 +82,21 @@ def _write_temp_source_file(file_content: str, file_name: str) -> str:
         return temp_file.name
 
 
-# Endpoints
-
-
+# Endpoints — scan
 @app.post("/agents/{agent}/scan", response_model=ScanResponse)
 def scan_endpoint(agent: str, request: ScanRequest):
+    """Scan a file with the specified agent and return issues."""
     a = _get_agent(agent)
     issues = _scan(a, request.file_content, request.file_name)
     return ScanResponse(issues=issues)
+
+# Endpoints — suggest
+@app.post("/agents/{agent}/suggest", response_model=SuggestResponse)
+def suggest_endpoint(agent: str, request: SuggestRequest):
+    """Generate fix suggestions for a list of issues."""
+    a = _get_agent(agent)
+    suggestions = a.get_suggestions(request.issues, request.file_content)
+    return SuggestResponse(suggestions=suggestions)
 
 
 # Analyze code and return issues and suggestions
