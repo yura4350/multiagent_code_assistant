@@ -67,11 +67,32 @@ function printSuggestions(suggestions: Suggestion[], outputChannel: vscode.Outpu
 	}
 }
 
+function issuesToDiagnostics(issues: Issue[], document: vscode.TextDocument): vscode.Diagnostic[] {
+	return issues.map(issue => {
+		const line = Math.max(0, issue.line - 1); // convert 1-based to 0-based
+		const col = issue.column !== null ? Math.max(0, issue.column - 1) : 0;
+		const lineLength = document.lineAt(line).text.length;
+		const range = new vscode.Range(line, col, line, lineLength);
+
+		const severity = issue.severity === 'error'
+			? vscode.DiagnosticSeverity.Error
+			: issue.severity === 'warning'
+				? vscode.DiagnosticSeverity.Warning
+				: vscode.DiagnosticSeverity.Information;
+
+		const diagnostic = new vscode.Diagnostic(range, issue.message, severity);
+		diagnostic.code = issue.rule_id;
+		diagnostic.source = 'AI Assistant';
+		return diagnostic;
+	});
+}
+
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
 	const outputChannel = vscode.window.createOutputChannel('AI Assistant');
+	const diagnosticCollection = vscode.languages.createDiagnosticCollection('ai-assistant');
 	outputChannel.appendLine('AI Assistant extension activated.');
 
 	const disposable = vscode.commands.registerCommand('agent-extension.analyze', async () => {
@@ -137,6 +158,7 @@ export function activate(context: vscode.ExtensionContext) {
 				outputChannel.appendLine(`Received ${data.issues.length} issue(s), ${data.suggestions.length} suggestion(s).`);
 				printIssues(data.issues, outputChannel);
 				printSuggestions(data.suggestions, outputChannel);
+			diagnosticCollection.set(document.uri, issuesToDiagnostics(data.issues, document));
 
 			// Scan
 			} else if (operationPick.label === 'Scan') {
@@ -151,6 +173,7 @@ export function activate(context: vscode.ExtensionContext) {
 				const scanData = await scanResponse.json() as ScanResponse;
 				outputChannel.appendLine(`Received ${scanData.issues.length} issue(s).`);
 				printIssues(scanData.issues, outputChannel);
+			diagnosticCollection.set(document.uri, issuesToDiagnostics(scanData.issues, document));
 
 			// Scan and Suggest
 			} else {
@@ -177,6 +200,7 @@ export function activate(context: vscode.ExtensionContext) {
 				outputChannel.appendLine(`Received ${scanData.issues.length} issue(s), ${suggestData.suggestions.length} suggestion(s).`);
 				printIssues(scanData.issues, outputChannel);
 				printSuggestions(suggestData.suggestions, outputChannel);
+			diagnosticCollection.set(document.uri, issuesToDiagnostics(scanData.issues, document));
 
 				// Optional apply
 				if (suggestData.suggestions.length > 0) {
@@ -206,6 +230,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 						outputChannel.appendLine(`\nFixes applied. Remaining issues: ${applyData.remaining_issues.length}`);
 						printIssues(applyData.remaining_issues, outputChannel);
+						diagnosticCollection.set(document.uri, issuesToDiagnostics(applyData.remaining_issues, document));
 					}
 				}
 			}
@@ -218,7 +243,7 @@ export function activate(context: vscode.ExtensionContext) {
 		outputChannel.show(true);
 	});
 
-	context.subscriptions.push(disposable, outputChannel);
+	context.subscriptions.push(disposable, outputChannel, diagnosticCollection);
 }
 
 // This method is called when your extension is deactivated
