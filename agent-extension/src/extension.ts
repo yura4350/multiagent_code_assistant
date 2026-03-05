@@ -38,7 +38,10 @@ interface ApplyResponse {
 }
 
 function printIssues(issues: Issue[], outputChannel: vscode.OutputChannel) {
-	if (issues.length === 0) { return; }
+	if (issues.length === 0) {
+		outputChannel.appendLine('No issues found.');
+		return;
+	}
 	outputChannel.appendLine('\n--- Issues ---');
 	for (const issue of issues) {
 		const col = issue.column !== null ? `:${issue.column}` : '';
