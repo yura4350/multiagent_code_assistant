@@ -134,7 +134,7 @@ def suggest_endpoint(agent: str, request: SuggestRequest):
 
 
 # Endpoints - apply
-@app.post("/agents/{agents}/apply", response_model=ApplyResponse)
+@app.post("/agents/{agent}/apply", response_model=ApplyResponse)
 def apply_endpoint(agent: str, request: ApplyRequest):
     """
     Apply suggestions to the file content and return the fixed code together
@@ -149,7 +149,7 @@ def apply_endpoint(agent: str, request: ApplyRequest):
     return ApplyResponse(fixed_content=fixed_content, remaining_issues=remaining_issues)
 
 # Endpoints - validate
-@app.post("/agents/{agents}/validate", response_model=ValidateResponse)
+@app.post("/agents/{agent}/validate", response_model=ValidateResponse)
 def validate_endpoint(agent: str, request: ValidateRequest): 
     """Validates the agent identified proper issues."""
     a = _get_agent(agent)

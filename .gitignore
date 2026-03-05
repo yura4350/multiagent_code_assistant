@@ -221,7 +221,6 @@ __marimo__/
 # Build output
 extension/**/out/
 extension/**/dist/
-*.vsix
 
 # Python virtual environment
 extension/**/venv/
