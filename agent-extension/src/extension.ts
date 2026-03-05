@@ -87,6 +87,19 @@ function issuesToDiagnostics(issues: Issue[], document: vscode.TextDocument): vs
 	});
 }
 
+// Virtual document provider for diff preview
+const previewScheme = 'ai-assistant-preview';
+const previewContentMap = new Map<string, string>();
+
+// Store suggestions per document for code actions (quick fixes)
+interface StoredSuggestions {
+	fileContent: string;
+	suggestions: Suggestion[];
+	backendUrl: string;
+	agent: string;
+}
+const documentSuggestions = new Map<string, StoredSuggestions>();
+
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
@@ -94,6 +107,113 @@ export function activate(context: vscode.ExtensionContext) {
 	const outputChannel = vscode.window.createOutputChannel('AI Assistant');
 	const diagnosticCollection = vscode.languages.createDiagnosticCollection('ai-assistant');
 	outputChannel.appendLine('AI Assistant extension activated.');
+
+	const previewProvider = vscode.workspace.registerTextDocumentContentProvider(previewScheme, {
+		provideTextDocumentContent(uri: vscode.Uri): string {
+			return previewContentMap.get(uri.toString()) ?? '';
+		}
+	});
+	context.subscriptions.push(previewProvider);
+
+	// Command: apply a single suggestion
+	const applySingleFix = vscode.commands.registerCommand(
+		'agent-extension.applySingleFix',
+		async (documentUri: vscode.Uri, suggestion: Suggestion) => {
+			const stored = documentSuggestions.get(documentUri.toString());
+			if (!stored) { return; }
+			const document = await vscode.workspace.openTextDocument(documentUri);
+			const fileName = documentUri.path.split('/').pop();
+			const applyResponse = await fetch(`${stored.backendUrl}/agents/${stored.agent}/apply`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ file_content: stored.fileContent, file_name: fileName, suggestions: [suggestion] })
+			});
+			if (!applyResponse.ok) {
+				vscode.window.showErrorMessage(`AI Assistant: apply failed (${applyResponse.status})`);
+				return;
+			}
+			const applyData = await applyResponse.json() as ApplyResponse;
+			const edit = new vscode.WorkspaceEdit();
+			edit.replace(documentUri, new vscode.Range(document.positionAt(0), document.positionAt(stored.fileContent.length)), applyData.fixed_content);
+			await vscode.workspace.applyEdit(edit);
+			diagnosticCollection.set(documentUri, issuesToDiagnostics(applyData.remaining_issues, document));
+		}
+	);
+
+	// Command: apply all suggestions
+	const applyAllFixes = vscode.commands.registerCommand(
+		'agent-extension.applyAllFixes',
+		async (documentUri: vscode.Uri) => {
+			const stored = documentSuggestions.get(documentUri.toString());
+			if (!stored) { return; }
+			const document = await vscode.workspace.openTextDocument(documentUri);
+			const fileName = documentUri.path.split('/').pop();
+			const applyResponse = await fetch(`${stored.backendUrl}/agents/${stored.agent}/apply`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ file_content: stored.fileContent, file_name: fileName, suggestions: stored.suggestions })
+			});
+			if (!applyResponse.ok) {
+				vscode.window.showErrorMessage(`AI Assistant: apply failed (${applyResponse.status})`);
+				return;
+			}
+			const applyData = await applyResponse.json() as ApplyResponse;
+			const edit = new vscode.WorkspaceEdit();
+			edit.replace(documentUri, new vscode.Range(document.positionAt(0), document.positionAt(stored.fileContent.length)), applyData.fixed_content);
+			await vscode.workspace.applyEdit(edit);
+			diagnosticCollection.set(documentUri, issuesToDiagnostics(applyData.remaining_issues, document));
+		}
+	);
+
+	// Code action provider: lightbulb on squiggly lines
+	const codeActionProvider = vscode.languages.registerCodeActionsProvider(
+		{ scheme: 'file' },
+		{
+			provideCodeActions(document, _range, context): vscode.CodeAction[] {
+				const stored = documentSuggestions.get(document.uri.toString());
+				if (!stored) { return []; }
+
+				const actions: vscode.CodeAction[] = [];
+				for (const diagnostic of context.diagnostics) {
+					if (diagnostic.source !== 'AI Assistant') { continue; }
+					const suggestion = stored.suggestions.find(s =>
+						String(s.issue.rule_id) === String(diagnostic.code) &&
+						s.issue.line - 1 === diagnostic.range.start.line
+					);
+					if (!suggestion) { continue; }
+
+					const fixOne = new vscode.CodeAction(
+						`AI Fix: ${suggestion.issue.rule_id} — ${suggestion.issue.message}`,
+						vscode.CodeActionKind.QuickFix
+					);
+					fixOne.diagnostics = [diagnostic];
+					fixOne.command = {
+						command: 'agent-extension.applySingleFix',
+						title: 'Apply single fix',
+						arguments: [document.uri, suggestion]
+					};
+					actions.push(fixOne);
+				}
+
+				// "Fix all" action if there are any stored suggestions
+				if (stored.suggestions.length > 0 && context.diagnostics.some(d => d.source === 'AI Assistant')) {
+					const fixAll = new vscode.CodeAction(
+						`AI Fix All: Apply all ${stored.suggestions.length} suggestion(s)`,
+						vscode.CodeActionKind.QuickFix
+					);
+					fixAll.command = {
+						command: 'agent-extension.applyAllFixes',
+						title: 'Apply all fixes',
+						arguments: [document.uri]
+					};
+					actions.push(fixAll);
+				}
+
+				return actions;
+			}
+		},
+		{ providedCodeActionKinds: [vscode.CodeActionKind.QuickFix] }
+	);
 
 	const disposable = vscode.commands.registerCommand('agent-extension.analyze', async () => {
 		// Get the current active editor
@@ -201,32 +321,52 @@ export function activate(context: vscode.ExtensionContext) {
 				printIssues(scanData.issues, outputChannel);
 				printSuggestions(suggestData.suggestions, outputChannel);
 			diagnosticCollection.set(document.uri, issuesToDiagnostics(scanData.issues, document));
+				documentSuggestions.set(document.uri.toString(), {
+					fileContent,
+					suggestions: suggestData.suggestions,
+					backendUrl,
+					agent: agentPick!
+				});
 
-				// Optional apply
+				// Optional apply with diff preview
 				if (suggestData.suggestions.length > 0) {
+					// Fetch fixed content first so we can show a diff
+					const applyResponse = await fetch(`${backendUrl}/agents/${agentPick}/apply`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ file_content: fileContent, file_name: fileName, suggestions: suggestData.suggestions })
+					});
+					if (!applyResponse.ok) {
+						throw new Error(`Server error (apply): ${applyResponse.status}`);
+					}
+					const applyData = await applyResponse.json() as ApplyResponse;
+
+					// Show diff between current file and fixed content
+					const previewUri = vscode.Uri.parse(`${previewScheme}:${fileName} (Fixed)`);
+					previewContentMap.set(previewUri.toString(), applyData.fixed_content);
+					await vscode.commands.executeCommand(
+						'vscode.diff',
+						document.uri,
+						previewUri,
+						`AI Assistant: ${fileName} — Current ↔ Fixed`
+					);
+
 					const confirm = await vscode.window.showInformationMessage(
-						`AI Assistant: Apply ${suggestData.suggestions.length} suggestion(s) to ${fileName}?`,
+						`Apply ${suggestData.suggestions.length} suggestion(s) to ${fileName}?`,
 						'Apply', 'Cancel'
 					);
 
-					if (confirm === 'Apply') {
-						const applyResponse = await fetch(`${backendUrl}/agents/${agentPick}/apply`, {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({ file_content: fileContent, file_name: fileName, suggestions: suggestData.suggestions })
-						});
-						if (!applyResponse.ok) {
-							throw new Error(`Server error (apply): ${applyResponse.status}`);
-						}
-						const applyData = await applyResponse.json() as ApplyResponse;
+					// Close the diff editor
+					await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
 
-						await editor.edit(editBuilder => {
-							const fullRange = new vscode.Range(
-								document.positionAt(0),
-								document.positionAt(fileContent.length)
-							);
-							editBuilder.replace(fullRange, applyData.fixed_content);
-						});
+					if (confirm === 'Apply') {
+						const workspaceEdit = new vscode.WorkspaceEdit();
+						workspaceEdit.replace(
+							document.uri,
+							new vscode.Range(document.positionAt(0), document.positionAt(fileContent.length)),
+							applyData.fixed_content
+						);
+						await vscode.workspace.applyEdit(workspaceEdit);
 
 						outputChannel.appendLine(`\nFixes applied. Remaining issues: ${applyData.remaining_issues.length}`);
 						printIssues(applyData.remaining_issues, outputChannel);
@@ -243,7 +383,7 @@ export function activate(context: vscode.ExtensionContext) {
 		outputChannel.show(true);
 	});
 
-	context.subscriptions.push(disposable, outputChannel, diagnosticCollection);
+	context.subscriptions.push(disposable, outputChannel, diagnosticCollection, applySingleFix, applyAllFixes, codeActionProvider);
 }
 
 // This method is called when your extension is deactivated
