@@ -24,6 +24,46 @@ interface AnalyzeResponse {
 	suggestions: Suggestion[];
 }
 
+interface ScanResponse {
+	issues: Issue[];
+}
+
+interface SuggestResponse {
+	suggestions: Suggestion[];
+}
+
+interface ApplyResponse {
+	fixed_content: string;
+	remaining_issues: Issue[];
+}
+
+function printIssues(issues: Issue[], outputChannel: vscode.OutputChannel) {
+	if (issues.length === 0) { return; }
+	outputChannel.appendLine('\n--- Issues ---');
+	for (const issue of issues) {
+		const col = issue.column !== null ? `:${issue.column}` : '';
+		outputChannel.appendLine(`  [${issue.severity}] Line ${issue.line}${col} (${issue.rule_id}): ${issue.message}`);
+	}
+}
+
+function printSuggestions(suggestions: Suggestion[], outputChannel: vscode.OutputChannel) {
+	if (suggestions.length === 0) { return; }
+	outputChannel.appendLine('\n--- Suggestions ---');
+	for (const s of suggestions) {
+		outputChannel.appendLine(`\n  Rule: ${s.issue.rule_id} (Line ${s.issue.line})`);
+		outputChannel.appendLine(`  Rationale: ${s.rationale}`);
+		if (s.confidence !== null) {
+			outputChannel.appendLine(`  Confidence: ${(s.confidence * 100).toFixed(0)}%`);
+		}
+		if (s.original_code) {
+			outputChannel.appendLine(`  Before: ${s.original_code}`);
+		}
+		if (s.fixed_code) {
+			outputChannel.appendLine(`  After:  ${s.fixed_code}`);
+		}
+	}
+}
+
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
@@ -47,65 +87,122 @@ export function activate(context: vscode.ExtensionContext) {
 		const fileName = document.fileName.split('/').pop();
 
 		// Read backend server URL from configuration
-		// Currently defaults to the dev server http://vcm-52527.vm.duke.edu:8000
+		// Currently defaults to the dev server http://vcm-52409.vm.duke.edu:4003
 		const config = vscode.workspace.getConfiguration('aiAssistant');
-		const backendUrl = config.get<string>('backendUrl', 'http://localhost:8000');
+		const backendUrl = config.get<string>('backendUrl', 'http://vcm-52409.vm.duke.edu:4003');
 
-		// Prompt user to select an agent
-		const agentPick = await vscode.window.showQuickPick(
-			['ALL', 'CODE_STYLE', 'IDIOMS', 'TESTS', 'DESIGN'],
-			{ placeHolder: 'Select an AI agent to run (ALL runs every agent)' }
+		// Pick operation
+		const operationPick = await vscode.window.showQuickPick(
+			[
+				{ label: 'Scan', description: 'Find issues only' },
+				{ label: 'Scan + Suggest', description: 'Find issues, get fix suggestions, and optionally apply them' },
+				{ label: 'Analyze All', description: 'Run all agents (scan + suggest)' },
+			],
+			{ placeHolder: 'Select operation' }
 		);
 
-		if (!agentPick) {
+		if (!operationPick) {
 			return;
 		}
 
-		const agent = agentPick === 'ALL' ? null : agentPick;
+		// Pick agent (if not anayze all)
+		let agentPick: string | undefined;
+		if (operationPick.label !== 'Analyze All') {
+			agentPick = await vscode.window.showQuickPick(
+				['CODE_STYLE', 'IDIOMS', 'TESTS'],
+				{ placeHolder: 'Select an agent' }
+			);
+			if (!agentPick) {
+				return;
+			}
+		}
 
-		outputChannel.appendLine(`[${new Date().toISOString()}] Analyzing: ${fileName} (${fileContent.length} chars) → ${backendUrl} [agent: ${agentPick}]`);
+		outputChannel.appendLine(`[${new Date().toISOString()}] ${operationPick.label}: ${fileName} (${fileContent.length} chars) → ${backendUrl} [agent: ${agentPick ?? 'ALL'}]`);
 
 		try {
-			const response = await fetch(`${backendUrl}/analyze`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					file_content: fileContent,
-					file_name: fileName,
-					agent: agent
-				})
-			});
-
-			if (!response.ok) {
-				throw new Error(`Server error: ${response.status}`);
-			}
-
-			const data = await response.json() as AnalyzeResponse;
-			outputChannel.appendLine(`Received ${data.issues.length} issue(s), ${data.suggestions.length} suggestion(s).`);
-
-			// Print each issue
-			if (data.issues.length > 0) {
-				outputChannel.appendLine('\n--- Issues ---');
-				for (const issue of data.issues) {
-					const col = issue.column !== null ? `:${issue.column}` : '';
-					outputChannel.appendLine(`  [${issue.severity}] Line ${issue.line}${col} (${issue.rule_id}): ${issue.message}`);
+			// Anaylze All
+			if (operationPick.label === 'Analyze All') {
+				const response = await fetch(`${backendUrl}/analyze`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ file_content: fileContent, file_name: fileName, agent: null })
+				});
+				if (!response.ok) {
+					throw new Error(`Server error: ${response.status}`);
 				}
-			}
+				const data = await response.json() as AnalyzeResponse;
+				outputChannel.appendLine(`Received ${data.issues.length} issue(s), ${data.suggestions.length} suggestion(s).`);
+				printIssues(data.issues, outputChannel);
+				printSuggestions(data.suggestions, outputChannel);
 
-			// Print each suggestion
-			if (data.suggestions.length > 0) {
-				outputChannel.appendLine('\n--- Suggestions ---');
-				for (const s of data.suggestions) {
-					outputChannel.appendLine(`\n  Rule: ${s.issue.rule_id} (Line ${s.issue.line})`);
-					outputChannel.appendLine(`  Rationale: ${s.rationale}`);
-					if (s.confidence !== null) {
-						outputChannel.appendLine(`  Confidence: ${(s.confidence * 100).toFixed(0)}%`);
-					}
-					if (s.original_code) {
-						outputChannel.appendLine(`  Before: ${s.original_code}`);
-					}
-					if (s.fixed_code) {
-						outputChannel.appendLine(`  After:  ${s.fixed_code}`);
+			// Scan
+			} else if (operationPick.label === 'Scan') {
+				const scanResponse = await fetch(`${backendUrl}/agents/${agentPick}/scan`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ file_content: fileContent, file_name: fileName })
+				});
+				if (!scanResponse.ok) {
+					throw new Error(`Server error (scan): ${scanResponse.status}`);
+				}
+				const scanData = await scanResponse.json() as ScanResponse;
+				outputChannel.appendLine(`Received ${scanData.issues.length} issue(s).`);
+				printIssues(scanData.issues, outputChannel);
+
+			// Scan and Suggest
+			} else {
+				const scanResponse = await fetch(`${backendUrl}/agents/${agentPick}/scan`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ file_content: fileContent, file_name: fileName })
+				});
+				if (!scanResponse.ok) {
+					throw new Error(`Server error (scan): ${scanResponse.status}`);
+				}
+				const scanData = await scanResponse.json() as ScanResponse;
+
+				const suggestResponse = await fetch(`${backendUrl}/agents/${agentPick}/suggest`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ file_content: fileContent, file_name: fileName, issues: scanData.issues })
+				});
+				if (!suggestResponse.ok) {
+					throw new Error(`Server error (suggest): ${suggestResponse.status}`);
+				}
+				const suggestData = await suggestResponse.json() as SuggestResponse;
+
+				outputChannel.appendLine(`Received ${scanData.issues.length} issue(s), ${suggestData.suggestions.length} suggestion(s).`);
+				printIssues(scanData.issues, outputChannel);
+				printSuggestions(suggestData.suggestions, outputChannel);
+
+				// Optional apply
+				if (suggestData.suggestions.length > 0) {
+					const confirm = await vscode.window.showInformationMessage(
+						`AI Assistant: Apply ${suggestData.suggestions.length} suggestion(s) to ${fileName}?`,
+						'Apply', 'Cancel'
+					);
+
+					if (confirm === 'Apply') {
+						const applyResponse = await fetch(`${backendUrl}/agents/${agentPick}/apply`, {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ file_content: fileContent, file_name: fileName, suggestions: suggestData.suggestions })
+						});
+						if (!applyResponse.ok) {
+							throw new Error(`Server error (apply): ${applyResponse.status}`);
+						}
+						const applyData = await applyResponse.json() as ApplyResponse;
+
+						await editor.edit(editBuilder => {
+							const fullRange = new vscode.Range(
+								document.positionAt(0),
+								document.positionAt(fileContent.length)
+							);
+							editBuilder.replace(fullRange, applyData.fixed_content);
+						});
+
+						outputChannel.appendLine(`\nFixes applied. Remaining issues: ${applyData.remaining_issues.length}`);
+						printIssues(applyData.remaining_issues, outputChannel);
 					}
 				}
 			}
