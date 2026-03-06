@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from src.agents.code_style_agent import StyleAgent
 from src.agents.idioms_agent import IdiomsAgent
 from src.agents.testing_agent import TestingAgent
+from src.agents.clean_code_agent import CleanCodeAgent
 from src.util.issue import Issue
 from src.util.suggestion import Suggestion
 
@@ -16,7 +17,7 @@ AGENT_REGISTRY = {
     "CODE_STYLE": StyleAgent,
     "IDIOMS": IdiomsAgent,
     "TESTS": TestingAgent,
-    # "DESIGN": None,  # Placeholder for DesignAgent
+    "CLEAN_CODE": CleanCodeAgent
 }
 
 # Request / Response models

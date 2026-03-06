@@ -253,7 +253,7 @@ export function activate(context: vscode.ExtensionContext) {
 		let agentPick: string | undefined;
 		if (operationPick.label !== 'Analyze All') {
 			agentPick = await vscode.window.showQuickPick(
-				['CODE_STYLE', 'IDIOMS', 'TESTS'],
+				['CODE_STYLE', 'IDIOMS', 'TESTS', 'CLEAN_CODE'],
 				{ placeHolder: 'Select an agent' }
 			);
 			if (!agentPick) {
