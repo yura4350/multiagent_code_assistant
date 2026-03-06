@@ -9,9 +9,8 @@ class PromptRegistry:
         )
 
         self._name_to_file = {
-            "idioms.suggestions": "suggestions.txt",
-            # future:
-            # "idioms.scan": "idioms_scan.txt",
+            "idioms.suggestions": "idioms/suggestions.txt",
+            "idioms.scan": "idioms/scan.txt",
             # "idioms.apply": "idioms_apply.txt",
         }
 
