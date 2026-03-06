@@ -7,7 +7,7 @@ import os
 from openai import OpenAI
 
 from src.agents.abstract_agent import BaseAgent
-from src.model.llm_applier import LLMApplier
+from src.model.testing_applier import Applier
 from src.model.llm_generator import LLMGenerator
 from src.model.llm_scanner import LLMScanner
 from src.model.prompt_registry import PromptRegistry
@@ -89,26 +89,8 @@ class TestingAgent(BaseAgent):
         return validator.validate()
 
     def apply(self, suggestions: list[Suggestion], file_path: str) -> None:
-        """Write suggested tests to the corresponding test file."""
-        valid_suggestions = [s for s in suggestions if self.validate(s)]
-
-        if not valid_suggestions:
-            logger.warning("No valid suggestions to apply.")
-            return
-
-        # Combine all suggested test functions
-        fixed_code_all = "\n\n".join(s.fixed_code for s in valid_suggestions)
-        test_file_path = self._get_test_file_path(file_path)
-
-        # Create the directory if it doesn't exist
-        os.makedirs(os.path.dirname(test_file_path), exist_ok=True)
-
-        # Append the new tests to the end of the file
-        with open(test_file_path, "a", encoding="utf-8") as f:
-            f.write("\n\n" + fixed_code_all)
-        logger.info(
-            "Appended %d suggestions to %s", len(valid_suggestions), test_file_path
-        )
+        applier = Applier()
+        applier.apply(suggestions, file_path)
 
     def _read_file(self, file_path: str) -> str:
         """Read and return file contents."""
