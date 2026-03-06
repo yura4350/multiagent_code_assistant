@@ -65,3 +65,12 @@ class Scanner:
             )
 
         return issues
+
+
+    def _severity_from_rule(self, rule_id: str) -> str:
+        # Lightweight heuristic for MVP reporting.
+        if rule_id.startswith(("E", "F")):
+            return "error"
+        if rule_id.startswith("W"):
+            return "warning"
+        return "info"
