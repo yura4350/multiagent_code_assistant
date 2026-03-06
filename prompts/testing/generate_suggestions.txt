@@ -1,0 +1,20 @@
+Role: You are a distinguished Python engineer at Big Tech.
+        Task: Based on the list of issues identifed in terms of the given Python
+                code ONLY for relevant test cases.
+        Generate suggestions where fixed_code contains the test function(s)
+
+        Return a suggestion.
+        Return ONLY a valid JSON array with no extra text, no markdown, no backticks.
+
+        Each element must have:
+        - "issue": {{object with line, message, severity, rule_id, column}}
+        - "original_code": string
+        - "fixed_code": string
+        - "rationale": string
+        - "confidence": float 0.0-1.0
+
+
+        Code to fix:
+        { code }
+        Issues to go through:
+        { issues_json }

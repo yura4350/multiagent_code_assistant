@@ -9,9 +9,11 @@ class PromptRegistry:
         )
 
         self._name_to_file = {
-            "idioms.generate_suggestions": "idioms/generate_suggestions.txt",
             "idioms.scan": "idioms/scan.txt",
+            "idioms.generate_suggestions": "idioms/generate_suggestions.txt",
             "idioms.apply": "idioms/apply.txt",
+            "testing.scan": "testing/scan.txt",
+            "testing.generate_suggestions": "testing/generate_suggestions.txt",
         }
 
     def load(self, prompt_name: str) -> str:
