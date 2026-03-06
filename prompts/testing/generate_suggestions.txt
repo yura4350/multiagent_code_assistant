@@ -15,6 +15,6 @@ Role: You are a distinguished Python engineer at Big Tech.
 
 
         Code to fix:
-        { code }
+        {{ code }}
         Issues to go through:
-        { issues_json }
+        {{ issues_json }}

@@ -19,7 +19,7 @@ Role: You are a distinguished Python engineer specializing in test quality.
             - column (int): use 0
 
         Source file:
-        { content }
+        {{ content }}
 
         Existing test file (empty if none exists):
-        { test_content }
+        {{ test_content }}
