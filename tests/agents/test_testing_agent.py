@@ -14,6 +14,12 @@ MOCK_ISSUES_JSON = """[
      "rule_id": "range_len_enumerate", "column": 0}
 ]"""
 
+def _set_llm_env(monkeypatch):
+    monkeypatch.setenv("LITELLM_TOKEN", "test-token")
+    monkeypatch.setenv("LLM_API_URL", "https://example.test/v1")
+    monkeypatch.setenv("MODEL_ID", "GPT 4.1")
+
+
 def make_mock_response(content: str) -> MagicMock:
     """Helper to create a mock OpenAI response."""
     mock_response = MagicMock()
@@ -26,8 +32,9 @@ def make_mock_response(content: str) -> MagicMock:
     return mock_response
 
 @patch("src.agents.testing_agent.OpenAI")
-def test_tests_scan(mock_openai):
+def test_tests_scan(mock_openai, monkeypatch):
     """Test that scan() parses LLM response into Issue objects."""
+    _set_llm_env(monkeypatch)
     mock_openai.return_value.chat.completions.create.return_value = (
         make_mock_response(MOCK_ISSUES_JSON)
     )
@@ -42,8 +49,9 @@ def test_tests_scan(mock_openai):
     assert issues[0].rule_id == "range_len_enumerate"
 
 @patch("src.agents.testing_agent.OpenAI")
-def test_get_suggestions_success(mock_openai_class):
+def test_get_suggestions_success(mock_openai_class, monkeypatch):
     """Test the full flow of generating suggestions from issues."""
+    _set_llm_env(monkeypatch)
     mock_client = mock_openai_class.return_value
 
     # The JSON the LLM returns
