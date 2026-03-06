@@ -14,8 +14,7 @@ class Applier:
 
     def apply(self, suggestions: list[Suggestion], file_path: str):
         """Write suggested tests to the corresponding test file."""
-        validator = Validator()
-        valid_suggestions = [s for s in suggestions if validator.validate(s)]
+        valid_suggestions = [s for s in suggestions if Validator(s).validate()]
 
         if not valid_suggestions:
             logger.warning("No valid suggestions to apply.")
