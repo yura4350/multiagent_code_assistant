@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.agents.code_style_agent import StyleAgent
+from src.model.code_style_scanner import Scanner
 from src.models.issue import Issue
 
 
@@ -71,8 +72,8 @@ def test_style_agent_scan_clean_file(tmp_path):
     ("B006", "info"),
 ])
 def test_severity_from_rule(rule_id, expected):
-    agent = StyleAgent()
-    assert agent._severity_from_rule(rule_id) == expected
+    scanner = Scanner()
+    assert scanner._severity_from_rule(rule_id) == expected
 
 
 # ---------------------------------------------------------------------------
@@ -80,14 +81,14 @@ def test_severity_from_rule(rule_id, expected):
 # ---------------------------------------------------------------------------
 
 def test_parse_ruff_output_empty():
-    agent = StyleAgent()
-    assert agent._parse_ruff_output([]) == []
+    scanner = Scanner()
+    assert scanner._parse_ruff_output([]) == []
 
 
 def test_parse_ruff_output_single():
-    agent = StyleAgent()
+    scanner = Scanner()
     raw = [_make_ruff_entry(code="E501", message="line too long", row=10, column=80)]
-    issues = agent._parse_ruff_output(raw)
+    issues = scanner._parse_ruff_output(raw)
 
     assert len(issues) == 1
     assert issues[0].line == 10
@@ -98,12 +99,12 @@ def test_parse_ruff_output_single():
 
 
 def test_parse_ruff_output_multiple():
-    agent = StyleAgent()
+    scanner = Scanner()
     raw = [
         _make_ruff_entry(code="W291", row=3),
         _make_ruff_entry(code="F401", row=7),
     ]
-    issues = agent._parse_ruff_output(raw)
+    issues = scanner._parse_ruff_output(raw)
 
     assert len(issues) == 2
     assert issues[0].severity == "warning"
@@ -112,9 +113,9 @@ def test_parse_ruff_output_multiple():
 
 def test_parse_ruff_output_missing_fields():
     """Entries with missing optional fields should use sensible defaults."""
-    agent = StyleAgent()
+    scanner = Scanner()
     raw = [{"message": "something wrong"}]  # no code, no location
-    issues = agent._parse_ruff_output(raw)
+    issues = scanner._parse_ruff_output(raw)
 
     assert len(issues) == 1
     assert issues[0].rule_id == "RUFF"
@@ -184,7 +185,7 @@ def test_validate_with_multiple_issues_returns_false():
 # apply (mocked subprocess)
 # ---------------------------------------------------------------------------
 
-@patch("src.agents.code_style_agent.subprocess.run")
+@patch("src.model.code_style_applier.subprocess.run")
 def test_apply_calls_ruff_fix_and_format(mock_run):
     mock_run.return_value = MagicMock(returncode=0, stderr="")
     agent = StyleAgent()
@@ -201,39 +202,34 @@ def test_apply_calls_ruff_fix_and_format(mock_run):
 # _run_ruff_check (mocked subprocess)
 # ---------------------------------------------------------------------------
 
-@patch("src.agents.code_style_agent.subprocess.run")
+@patch("src.model.code_style_scanner.subprocess.run")
 def test_run_ruff_check_returns_parsed_json(mock_run):
-    payload = [_make_ruff_entry()]
     import json
+    payload = [_make_ruff_entry()]
     mock_run.return_value = MagicMock(returncode=1, stdout=json.dumps(payload), stderr="")
-    agent = StyleAgent()
-    result = agent._run_ruff_check("file.py")
-    assert result == payload
+    scanner = Scanner()
+    assert scanner._run_ruff_check("file.py") == payload
 
 
-@patch("src.agents.code_style_agent.subprocess.run")
+@patch("src.model.code_style_scanner.subprocess.run")
 def test_run_ruff_check_empty_stdout_returns_empty(mock_run):
     mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
-    agent = StyleAgent()
-    assert agent._run_ruff_check("file.py") == []
+    assert Scanner()._run_ruff_check("file.py") == []
 
 
-@patch("src.agents.code_style_agent.subprocess.run")
+@patch("src.model.code_style_scanner.subprocess.run")
 def test_run_ruff_check_bad_json_returns_empty(mock_run):
     mock_run.return_value = MagicMock(returncode=1, stdout="not json", stderr="")
-    agent = StyleAgent()
-    assert agent._run_ruff_check("file.py") == []
+    assert Scanner()._run_ruff_check("file.py") == []
 
 
-@patch("src.agents.code_style_agent.subprocess.run")
+@patch("src.model.code_style_scanner.subprocess.run")
 def test_run_ruff_check_error_returncode_returns_empty(mock_run):
     mock_run.return_value = MagicMock(returncode=2, stdout="", stderr="fatal error")
-    agent = StyleAgent()
-    assert agent._run_ruff_check("file.py") == []
+    assert Scanner()._run_ruff_check("file.py") == []
 
 
 def test_run_ruff_check_ruff_not_found_raises():
-    with patch("src.agents.code_style_agent.subprocess.run", side_effect=FileNotFoundError):
-        agent = StyleAgent()
+    with patch("src.model.code_style_scanner.subprocess.run", side_effect=FileNotFoundError):
         with pytest.raises(RuntimeError, match="Ruff not found"):
-            agent._run_ruff_check("file.py")
+            Scanner()._run_ruff_check("file.py")
