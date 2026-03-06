@@ -8,6 +8,7 @@ from src.agents.abstract_agent import BaseAgent
 from src.model.llm_generator import LLMGenerator
 from src.model.llm_scanner import LLMScanner
 from src.model.validator import Validator
+from src.model.llm_applier import LLMApplier
 from src.model.prompt_registry import PromptRegistry
 from src.models.issue import Issue
 from src.models.suggestion import Suggestion
@@ -80,50 +81,19 @@ class IdiomsAgent(BaseAgent):
         client = self._get_client()
         model = self._get_model()
 
-        # TODO: Replace with LLM Generator when ready
-        # client = OpenAI(
-        #     api_key=LLM_TOKEN,
-        #     base_url=LLM_API_URL,
-        # )
-
-        suggestions_json = json.dumps([s.model_dump() for s in suggestions], indent=2)
-        code = self._read_file(file_path)
-
-        idiom_apply_suggestion_prompt = f"""
-        Role: You are a senior software engineer at Big Tech.
-        Task: Apply the following suggestions to the given Python code.
-            Replace each original_code snippet with the corresponding fixed_code.
-        Code to fix:
-        {code}
-
-        Suggestions:
-        {suggestions_json}
-
-        Return ONLY the complete fixed Python script
-        with no extra text, no markdown, no backticks.
-        """
-        response = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": idiom_apply_suggestion_prompt}],
+        llm_applier = LLMApplier(
+            client=client, model=model, prompt_registry=PromptRegistry()
         )
 
-        raw = response.choices[0].message.content
+        context = {
+            "code": self._read_file(file_path),
+            "suggestions_json": json.dumps([s.model_dump() for s in suggestions], indent=2)
+        }
 
-        if raw:
-            logger.info("raw: %s", raw)
-            self._parse_applied_suggestion(raw, file_path)
-
-        return
+        return llm_applier.apply(prompt_name="idioms.apply", context=context, file_path=file_path)
 
     def _read_file(self, file_path: str) -> str:
         with open(file_path, "r") as file:
             content = file.read()
             logger.info("File Successfully Read")
         return content
-
-    def _parse_applied_suggestion(self, response: str, file_path: str) -> None:
-        """Write the LLM-returned fixed code back to the file."""
-        clean = response.strip().removeprefix("```python").removesuffix("```").strip()
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(clean)
-        logger.info("Applied suggestions to %s", file_path)
