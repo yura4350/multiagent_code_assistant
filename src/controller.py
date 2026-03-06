@@ -5,8 +5,8 @@ from src.agents.code_style_agent import StyleAgent
 from src.agents.idioms_agent import IdiomsAgent
 from src.agents.testing_agent import TestingAgent
 from src.util.input import ParsedInput, parse_input
-from src.util.planner import plan
 from src.util.issue import Issue
+from src.util.planner import plan
 from src.util.suggestion import Suggestion
 
 logger = logging.getLogger(__name__)

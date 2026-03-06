@@ -3,8 +3,8 @@ import logging
 
 from openai import OpenAI
 
-from src.util.prompt_registry import PromptRegistry
 from src.util.issue import Issue
+from src.util.prompt_registry import PromptRegistry
 from src.util.suggestion import Suggestion
 
 logger = logging.getLogger(__name__)
