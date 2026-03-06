@@ -1,6 +1,4 @@
-import json
 import logging
-import subprocess
 
 from src.agents.abstract_agent import BaseAgent
 from src.model.code_style_applier import Applier
