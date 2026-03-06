@@ -15,7 +15,7 @@ from src.models.suggestion import Suggestion
 
 logger = logging.getLogger(__name__)
 
-class CleanCodeAgent:
+class CleanCodeAgent(BaseAgent):
     def __init__(self) -> None:
         super().__init__("Clean Code")
 
