@@ -1,7 +1,5 @@
 import logging
 
-from src.models.suggestion import Suggestion
-
 logger = logging.getLogger(__name__)
 
 

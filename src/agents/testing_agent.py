@@ -7,10 +7,10 @@ import os
 from openai import OpenAI
 
 from src.agents.abstract_agent import BaseAgent
-from src.model.testing_applier import Applier
 from src.model.llm_generator import LLMGenerator
 from src.model.llm_scanner import LLMScanner
 from src.model.prompt_registry import PromptRegistry
+from src.model.testing_applier import Applier
 from src.model.testing_validator import Validator
 from src.models.issue import Issue
 from src.models.suggestion import Suggestion
@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 LLM_TOKEN = os.getenv("LITELLM_TOKEN")
 LLM_API_URL = os.getenv("LLM_API_URL", "https://litellm.oit.duke.edu/v1")
 
+
 class TestingAgent(BaseAgent):
     """Agent that identifies missing or weak tests and suggests improvements."""
 
@@ -28,7 +29,7 @@ class TestingAgent(BaseAgent):
 
     def __init__(self) -> None:
         super().__init__("Testing")
-    
+
     def _get_client(self) -> OpenAI:
         token = os.getenv("LITELLM_TOKEN")
         if not token:
@@ -61,7 +62,7 @@ class TestingAgent(BaseAgent):
             "content": content,
             "test_content": test_content,
         }
-        
+
         return llm_scanner.scan(prompt_name="testing.scan", context=context)
 
     def get_suggestions(self, issues: list[Issue], code: str) -> list[Suggestion]:
@@ -85,7 +86,7 @@ class TestingAgent(BaseAgent):
         )
 
     def validate(self, suggestion) -> bool:
-        validator = Validator(suggestion);
+        validator = Validator(suggestion)
         return validator.validate()
 
     def apply(self, suggestions: list[Suggestion], file_path: str) -> None:

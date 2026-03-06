@@ -1,9 +1,8 @@
 import logging
-import json
 import os
 
-from src.models.suggestion import Suggestion
 from src.model.testing_validator import Validator
+from src.models.suggestion import Suggestion
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +31,7 @@ class Applier:
         logger.info(
             "Appended %d suggestions to %s", len(valid_suggestions), test_file_path
         )
-    
+
     def _get_test_file_path(self, source_path: str) -> str:
         """Derive the test file path from a source file path.
 
