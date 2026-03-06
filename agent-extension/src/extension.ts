@@ -238,9 +238,9 @@ export function activate(context: vscode.ExtensionContext) {
 		// Pick operation
 		const operationPick = await vscode.window.showQuickPick(
 			[
-				{ label: 'Scan', description: 'Find issues only' },
-				{ label: 'Scan + Suggest', description: 'Find issues, get fix suggestions, and optionally apply them' },
-				{ label: 'Analyze All', description: 'Run all agents (scan + suggest)' },
+				{ label: 'Scan for Issues', description: 'Find issues only' },
+				{ label: 'Scan Issues & Suggest Fixes (for one agent)', description: 'Find issues, get fix suggestions, and optionally apply them' },
+				{ label: 'Scan Issue & Suggest Fixes (for all agents)', description: 'Run all agents (scan + suggest)' },
 			],
 			{ placeHolder: 'Select operation' }
 		);
@@ -249,23 +249,27 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		// Pick agent (if not anayze all)
+		// Pick agent (if not analyze all)
 		let agentPick: string | undefined;
-		if (operationPick.label !== 'Analyze All') {
-			agentPick = await vscode.window.showQuickPick(
-				['CODE_STYLE', 'IDIOMS', 'TESTS'],
-				{ placeHolder: 'Select an agent' }
-			);
-			if (!agentPick) {
+		if (operationPick.label !== 'Scan Issue & Suggest Fixes (for all agents)') {
+			const agentOptions = [
+				{ label: 'Code Style', description: 'Check formatting and naming conventions', value: 'CODE_STYLE' },
+				{ label: 'Idioms', description: 'Check for language-idiomatic patterns', value: 'IDIOMS' },
+				{ label: 'Tests', description: 'Check test quality and coverage', value: 'TESTS' },
+				{ label: 'Clean Code', description: 'Check for clean code principles', value: 'CLEAN_CODE' },
+			];
+			const agentSelection = await vscode.window.showQuickPick(agentOptions, { placeHolder: 'Select an agent' });
+			if (!agentSelection) {
 				return;
 			}
+			agentPick = agentSelection.value;
 		}
 
 		outputChannel.appendLine(`[${new Date().toISOString()}] ${operationPick.label}: ${fileName} (${fileContent.length} chars) → ${backendUrl} [agent: ${agentPick ?? 'ALL'}]`);
 
 		try {
-			// Anaylze All
-			if (operationPick.label === 'Analyze All') {
+			// Full Analysis (All Agents)
+			if (operationPick.label === 'Scan Issue & Suggest Fixes (for all agents)') {
 				const response = await fetch(`${backendUrl}/analyze`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
@@ -281,7 +285,7 @@ export function activate(context: vscode.ExtensionContext) {
 			diagnosticCollection.set(document.uri, issuesToDiagnostics(data.issues, document));
 
 			// Scan
-			} else if (operationPick.label === 'Scan') {
+			} else if (operationPick.label === 'Scan for Issues') {
 				const scanResponse = await fetch(`${backendUrl}/agents/${agentPick}/scan`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
