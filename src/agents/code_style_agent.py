@@ -5,6 +5,7 @@ import subprocess
 from src.agents.abstract_agent import BaseAgent
 from src.models.issue import Issue
 from src.models.suggestion import Suggestion
+from src.model.validator import Validator
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,8 @@ class StyleAgent(BaseAgent):
 
     def validate(self, issues: list[Issue]) -> bool:
         """Valid when there are no remaining lint issues."""
-        return len(issues) == 0
+        validator = Validator(issues)
+        return validator.validate()
 
     """
     Apply the suggestions to the code
@@ -136,48 +138,3 @@ class StyleAgent(BaseAgent):
         if rule_id.startswith("W"):
             return "warning"
         return "info"
-
-    """
-    Pylint functions not used
-    """
-
-    def _run_pylint(self, file_path: str) -> list[dict]:
-        try:
-            result = subprocess.run(
-                ["pylint", file_path, "--output-format=json"],
-                capture_output=True,
-                text=True,
-            )
-            return json.loads(result.stdout)
-        except subprocess.CalledProcessError as e:
-            print(f"Pylint failed with Exit Code: {e.returncode}")
-            return []
-        except FileNotFoundError:
-            print("Error: Pylint not found")
-            return []
-
-    def _parse_pylint_output(self, linting_issues: list[dict]) -> list[Issue]:
-        if not linting_issues:
-            return []
-
-        issues = []
-
-        severity_map = {
-            "convention": "info",
-            "refactor": "info",
-            "warning": "warning",
-            "error": "error",
-            "fatal": "error",
-        }
-
-        for linting_issue in linting_issues:
-            issue = Issue(
-                line=linting_issue["line"],
-                message=linting_issue["message"],
-                severity=severity_map[linting_issue["type"]],
-                rule_id=linting_issue["message-id"],
-                column=linting_issue["column"],
-            )
-            issues.append(issue)
-
-        return issues
