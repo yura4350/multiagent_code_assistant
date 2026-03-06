@@ -7,6 +7,11 @@ import os
 from openai import OpenAI
 
 from src.agents.abstract_agent import BaseAgent
+from src.model.llm_applier import LLMApplier
+from src.model.llm_generator import LLMGenerator
+from src.model.llm_scanner import LLMScanner
+from src.model.prompt_registry import PromptRegistry
+from src.model.validator import Validator
 from src.models.issue import Issue
 from src.models.suggestion import Suggestion
 
@@ -14,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 LLM_TOKEN = os.getenv("LITELLM_TOKEN")
 LLM_API_URL = os.getenv("LLM_API_URL", "https://litellm.oit.duke.edu/v1")
-
 
 class TestingAgent(BaseAgent):
     """Agent that identifies missing or weak tests and suggests improvements."""
@@ -24,57 +28,41 @@ class TestingAgent(BaseAgent):
 
     def __init__(self) -> None:
         super().__init__("Testing")
+    
+    def _get_client(self) -> OpenAI:
+        token = os.getenv("LITELLM_TOKEN")
+        if not token:
+            raise RuntimeError(
+                "Missing LITELLM_TOKEN. Put it in .env at project root or export it."
+            )
+
+        base_url = os.getenv("LLM_API_URL", "https://litellm.oit.duke.edu/v1")
+        return OpenAI(api_key=token, base_url=base_url)
+
+    def _get_model(self) -> str:
+        return os.getenv("MODEL_ID", "GPT 4.1")
 
     def scan(self, file_path: str) -> list[Issue]:
         """Scan source and test files for missing or insufficient tests."""
         content = self._read_file(file_path)
         test_file_path = self._get_test_file_path(file_path)
         test_content = self._read_file(test_file_path)
+        client = self._get_client()
+        model = self._get_model()
+
         if not test_content:
             logger.info("No existing test file found at %s", test_file_path)
 
-        client = OpenAI(
-            api_key=LLM_TOKEN,
-            base_url=LLM_API_URL,
-        )
-        test_scanner_prompt = f"""
-        Role: You are a distinguished Python engineer specializing in test quality.
-        Task: Analyze the given Python source file and its corresponding test file.
-            Identify functions or methods that are missing tests or 
-            have insufficient tests.
-            Do NOT generate test code — only identify the gaps.
-
-        Focus on:
-        - Functions in the source file with no corresponding test
-        - Tests with no assertions
-        - Tests that only cover the happy path but not edge cases or errors
-        - Functions with complex logic that need more thorough testing
-
-        Return ONLY a valid JSON array with no extra text, no markdown, no backticks.
-        Each element must have:
-            - line (int): line number in the SOURCE file where the function is defined
-            - message (str): description of what test is missing or insufficient
-            - severity (str): "error", "warning", or "info"
-            - rule_id (str): short identifier like "missing-test" or "weak-test"
-            - column (int): use 0
-
-        Source file:
-        {content}
-
-        Existing test file (empty if none exists):
-        {test_content}
-        """
-        response = client.chat.completions.create(
-            model="GPT 4.1",
-            messages=[{"role": "user", "content": test_scanner_prompt}],
+        llm_scanner = LLMScanner(
+            client=client, model=model, prompt_registry=PromptRegistry()
         )
 
-        raw = response.choices[0].message.content
-        if raw:
-            logger.info("raw: %s", raw)
-            return self._parse_issues(raw)
-
-        return []
+        context = {
+            "content": content,
+            "test_content": test_content,
+        }
+        
+        return llm_scanner.scan(prompt_name="testing.scan", context=context)
 
     def get_suggestions(self, issues: list[Issue], code: str) -> list[Suggestion]:
         """Generate suggested test code for identified gaps."""
