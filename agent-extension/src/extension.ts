@@ -35,6 +35,7 @@ interface SuggestResponse {
 interface ApplyResponse {
 	fixed_content: string;
 	remaining_issues: Issue[];
+	test_file_name?: string;
 }
 
 function printIssues(issues: Issue[], outputChannel: vscode.OutputChannel) {
@@ -100,6 +101,25 @@ interface StoredSuggestions {
 }
 const documentSuggestions = new Map<string, StoredSuggestions>();
 
+function deriveTestFileUri(sourceUri: vscode.Uri, testFileName: string): vscode.Uri | undefined {
+	const workspaceFolders = vscode.workspace.workspaceFolders;
+	if (!workspaceFolders || workspaceFolders.length === 0) { return undefined; }
+	const wsRoot = workspaceFolders[0].uri;
+	const wsPath = wsRoot.fsPath;
+	const sourcePath = sourceUri.fsPath;
+	const relPath = sourcePath.startsWith(wsPath) ? sourcePath.slice(wsPath.length + 1) : sourcePath;
+
+	let testDir: string;
+	if (relPath.startsWith('src/') || relPath.startsWith('src\\')) {
+		testDir = 'tests/src';
+	} else if (relPath.startsWith('data/') || relPath.startsWith('data\\')) {
+		testDir = 'tests/data';
+	} else {
+		testDir = 'tests';
+	}
+	return vscode.Uri.joinPath(wsRoot, testDir, testFileName);
+}
+
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
@@ -133,10 +153,21 @@ export function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 			const applyData = await applyResponse.json() as ApplyResponse;
-			const edit = new vscode.WorkspaceEdit();
-			edit.replace(documentUri, new vscode.Range(document.positionAt(0), document.positionAt(stored.fileContent.length)), applyData.fixed_content);
-			await vscode.workspace.applyEdit(edit);
-			diagnosticCollection.set(documentUri, issuesToDiagnostics(applyData.remaining_issues, document));
+			if (stored.agent === 'TESTS' && applyData.test_file_name) {
+				const testUri = deriveTestFileUri(documentUri, applyData.test_file_name);
+				if (testUri) {
+					const edit = new vscode.WorkspaceEdit();
+					edit.createFile(testUri, { overwrite: false, ignoreIfExists: true });
+					edit.insert(testUri, new vscode.Position(0, 0), applyData.fixed_content);
+					await vscode.workspace.applyEdit(edit);
+					await vscode.window.showTextDocument(testUri);
+				}
+			} else {
+				const edit = new vscode.WorkspaceEdit();
+				edit.replace(documentUri, new vscode.Range(document.positionAt(0), document.positionAt(stored.fileContent.length)), applyData.fixed_content);
+				await vscode.workspace.applyEdit(edit);
+				diagnosticCollection.set(documentUri, issuesToDiagnostics(applyData.remaining_issues, document));
+			}
 		}
 	);
 
@@ -158,10 +189,21 @@ export function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 			const applyData = await applyResponse.json() as ApplyResponse;
-			const edit = new vscode.WorkspaceEdit();
-			edit.replace(documentUri, new vscode.Range(document.positionAt(0), document.positionAt(stored.fileContent.length)), applyData.fixed_content);
-			await vscode.workspace.applyEdit(edit);
-			diagnosticCollection.set(documentUri, issuesToDiagnostics(applyData.remaining_issues, document));
+			if (stored.agent === 'TESTS' && applyData.test_file_name) {
+				const testUri = deriveTestFileUri(documentUri, applyData.test_file_name);
+				if (testUri) {
+					const edit = new vscode.WorkspaceEdit();
+					edit.createFile(testUri, { overwrite: false, ignoreIfExists: true });
+					edit.insert(testUri, new vscode.Position(0, 0), applyData.fixed_content);
+					await vscode.workspace.applyEdit(edit);
+					await vscode.window.showTextDocument(testUri);
+				}
+			} else {
+				const edit = new vscode.WorkspaceEdit();
+				edit.replace(documentUri, new vscode.Range(document.positionAt(0), document.positionAt(stored.fileContent.length)), applyData.fixed_content);
+				await vscode.workspace.applyEdit(edit);
+				diagnosticCollection.set(documentUri, issuesToDiagnostics(applyData.remaining_issues, document));
+			}
 		}
 	);
 
@@ -231,9 +273,9 @@ export function activate(context: vscode.ExtensionContext) {
 		const fileName = document.fileName.split('/').pop();
 
 		// Read backend server URL from configuration
-		// Currently defaults to the dev server http://vcm-52418.vm.duke.edu:4003
+		// Default URL is set in package.json (aiAssistant.backendUrl)
 		const config = vscode.workspace.getConfiguration('aiAssistant');
-		const backendUrl = config.get<string>('backendUrl', 'http://vcm-52418.vm.duke.edu:4003');
+		const backendUrl = config.get<string>('backendUrl')!;
 
 		// Pick operation
 		const operationPick = await vscode.window.showQuickPick(
@@ -345,36 +387,55 @@ export function activate(context: vscode.ExtensionContext) {
 					}
 					const applyData = await applyResponse.json() as ApplyResponse;
 
-					// Show diff between current file and fixed content
-					const previewUri = vscode.Uri.parse(`${previewScheme}:${fileName} (Fixed)`);
-					previewContentMap.set(previewUri.toString(), applyData.fixed_content);
-					await vscode.commands.executeCommand(
-						'vscode.diff',
-						document.uri,
-						previewUri,
-						`AI Assistant: ${fileName} — Current ↔ Fixed`
-					);
-
-					const confirm = await vscode.window.showInformationMessage(
-						`Apply ${suggestData.suggestions.length} suggestion(s) to ${fileName}?`,
-						'Apply', 'Cancel'
-					);
-
-					// Close the diff editor
-					await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-
-					if (confirm === 'Apply') {
-						const workspaceEdit = new vscode.WorkspaceEdit();
-						workspaceEdit.replace(
+					if (agentPick === 'TESTS' && applyData.test_file_name) {
+						// For TESTS agent: create/update the test file instead of modifying the source
+						const testUri = deriveTestFileUri(document.uri, applyData.test_file_name);
+						if (testUri) {
+							const confirm = await vscode.window.showInformationMessage(
+								`Create/update test file "${applyData.test_file_name}" with ${suggestData.suggestions.length} suggestion(s)?`,
+								'Apply', 'Cancel'
+							);
+							if (confirm === 'Apply') {
+								const workspaceEdit = new vscode.WorkspaceEdit();
+								workspaceEdit.createFile(testUri, { overwrite: false, ignoreIfExists: true });
+								workspaceEdit.insert(testUri, new vscode.Position(0, 0), applyData.fixed_content);
+								await vscode.workspace.applyEdit(workspaceEdit);
+								await vscode.window.showTextDocument(testUri);
+								outputChannel.appendLine(`\nTests written to ${applyData.test_file_name}.`);
+							}
+						}
+					} else {
+						// Show diff between current file and fixed content
+						const previewUri = vscode.Uri.parse(`${previewScheme}:${fileName} (Fixed)`);
+						previewContentMap.set(previewUri.toString(), applyData.fixed_content);
+						await vscode.commands.executeCommand(
+							'vscode.diff',
 							document.uri,
-							new vscode.Range(document.positionAt(0), document.positionAt(fileContent.length)),
-							applyData.fixed_content
+							previewUri,
+							`AI Assistant: ${fileName} — Current ↔ Fixed`
 						);
-						await vscode.workspace.applyEdit(workspaceEdit);
 
-						outputChannel.appendLine(`\nFixes applied. Remaining issues: ${applyData.remaining_issues.length}`);
-						printIssues(applyData.remaining_issues, outputChannel);
-						diagnosticCollection.set(document.uri, issuesToDiagnostics(applyData.remaining_issues, document));
+						const confirm = await vscode.window.showInformationMessage(
+							`Apply ${suggestData.suggestions.length} suggestion(s) to ${fileName}?`,
+							'Apply', 'Cancel'
+						);
+
+						// Close the diff editor
+						await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+
+						if (confirm === 'Apply') {
+							const workspaceEdit = new vscode.WorkspaceEdit();
+							workspaceEdit.replace(
+								document.uri,
+								new vscode.Range(document.positionAt(0), document.positionAt(fileContent.length)),
+								applyData.fixed_content
+							);
+							await vscode.workspace.applyEdit(workspaceEdit);
+
+							outputChannel.appendLine(`\nFixes applied. Remaining issues: ${applyData.remaining_issues.length}`);
+							printIssues(applyData.remaining_issues, outputChannel);
+							diagnosticCollection.set(document.uri, issuesToDiagnostics(applyData.remaining_issues, document));
+						}
 					}
 				}
 			}

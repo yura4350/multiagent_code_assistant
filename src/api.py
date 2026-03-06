@@ -58,6 +58,8 @@ class ApplyResponse(BaseModel):
     fixed_content: str
     # Issues remaining after the fix has been applied
     remaining_issues: list[Issue]
+    # Only set for TESTS agent: the name of the test file written
+    test_file_name: str | None = None
 
 
 class ValidateRequest(BaseModel):
@@ -105,6 +107,25 @@ def _write_temp_source_file(file_content: str, file_name: str) -> str:
         return temp_file.name
 
 
+def _apply_testing(file_content: str, file_name: str, suggestions: list[Suggestion]) -> tuple[str, str]:
+    """
+    Apply testing suggestions to a temporary test file.
+    Returns (test_file_content, test_file_name).
+    Does not modify the source file.
+    """
+    from src.util.testing_applier import Applier
+    test_file_name = f"test_{file_name}"
+    with tempfile.TemporaryDirectory() as tmpdir:
+        temp_test_path = os.path.join(tmpdir, test_file_name)
+        Applier().apply(suggestions, test_file_path=temp_test_path)
+        try:
+            with open(temp_test_path, encoding="utf-8") as f:
+                content = f.read()
+        except OSError:
+            content = ""
+    return content, test_file_name
+
+
 def _apply(agent, file_content: str, file_name: str, suggestions: list[Suggestion]):
     """
     Write content to a temp file, apply suggestions in-place, read back the
@@ -143,8 +164,20 @@ def apply_endpoint(agent: str, request: ApplyRequest):
     """
     Apply suggestions to the file content and return the fixed code together
     with any issues that remain after the fix.
+    For the TESTS agent, fixed_content is the generated test file content and
+    test_file_name is set to the suggested test file name.
     """
     a = _get_agent(agent)
+    if agent == "TESTS":
+        fixed_content, test_file_name = _apply_testing(
+            request.file_content, request.file_name, request.suggestions
+        )
+        remaining_issues = _scan(a, request.file_content, request.file_name)
+        return ApplyResponse(
+            fixed_content=fixed_content,
+            remaining_issues=remaining_issues,
+            test_file_name=test_file_name,
+        )
     fixed_content = _apply(
         a, request.file_content, request.file_name, request.suggestions
     )
