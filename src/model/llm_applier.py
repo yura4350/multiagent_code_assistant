@@ -31,6 +31,12 @@ class LLMApplier:
             return self._parse_applied_suggestion(raw, file_path)
 
         return []
+    
+    def _render_prompt(self, template: str, context: dict[str, str]) -> str:
+        rendered = template
+        for key, value in context.items():
+            rendered = rendered.replace(f"{{{{ {key} }}}}", value)
+        return rendered
 
     def _parse_applied_suggestion(self, response: str, file_path: str) -> None:
         """Write the LLM-returned fixed code back to the file."""
