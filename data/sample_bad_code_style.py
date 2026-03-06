@@ -1,5 +1,3 @@
-# ruff: noqa
-
 # Unused import
 # Bad spacing
 # Bad naming
