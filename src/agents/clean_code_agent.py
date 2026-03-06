@@ -11,14 +11,13 @@ from src.model.llm_scanner import LLMScanner
 from src.model.prompt_registry import PromptRegistry
 from src.model.validator import Validator
 from src.models.issue import Issue
-from src.models.suggestion import Suggestion
 
 logger = logging.getLogger(__name__)
 
 
-class IdiomsAgent(BaseAgent):
+class CleanCodeAgent(BaseAgent):
     def __init__(self) -> None:
-        super().__init__("Idiom")
+        super().__init__("Clean Code")
 
     def _get_client(self) -> OpenAI:
         token = os.getenv("LITELLM_TOKEN")
@@ -34,7 +33,7 @@ class IdiomsAgent(BaseAgent):
         return os.getenv("MODEL_ID", "GPT 4.1")
 
     def scan(self, file_path: str) -> list[Issue]:
-        """Scan the code for adherence to programming language idioms"""
+        """Scan the code for adherence to the Clean Code principles"""
         content = self._read_file(file_path)
         client = self._get_client()
         model = self._get_model()
@@ -47,9 +46,9 @@ class IdiomsAgent(BaseAgent):
             "content": content,
         }
 
-        return llm_scanner.scan(prompt_name="idioms.scan", context=context)
+        return llm_scanner.scan(prompt_name="cleancode.scan", context=context)
 
-    def get_suggestions(self, issues: list[Issue], code: str) -> list[Suggestion]:
+    def get_suggestions(self, issues, code):
         """Provide suggestions based on the scanned file and identified issues"""
         client = self._get_client()
         model = self._get_model()
@@ -66,14 +65,14 @@ class IdiomsAgent(BaseAgent):
         }
 
         return llm_generator.generate_suggestions(
-            prompt_name="idioms.generate_suggestions", context=context, issues=issues
+            prompt_name="cleancode.generate_suggestions", context=context, issues=issues
         )
 
     def validate(self, issues: list[Issue]) -> bool:
         validator = Validator(issues)
         return validator.validate()
 
-    def apply(self, suggestions: list[Suggestion], file_path: str) -> None:
+    def apply(self, suggestions, file_path):
         """
         Suggestion contains an issue with original code and fixed code.
         This functions aggregates these suggestions and provides updated code.
@@ -93,7 +92,7 @@ class IdiomsAgent(BaseAgent):
         }
 
         return llm_applier.apply(
-            prompt_name="idioms.apply", context=context, file_path=file_path
+            prompt_name="cleancode.apply", context=context, file_path=file_path
         )
 
     def _read_file(self, file_path: str) -> str:

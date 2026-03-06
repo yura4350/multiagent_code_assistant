@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from src.agents.idioms_agent import IdiomsAgent
 from src.model.llm_generator import LLMGenerator
+from src.model.llm_scanner import LLMScanner
 from src.model.prompt_registry import PromptRegistry
 from src.models.issue import Issue
 from src.models.suggestion import Suggestion
@@ -130,10 +131,14 @@ def test_read_file(tmp_path, monkeypatch):
     assert content == "print('hello')\n"
 
 
-def test_parse_issues_invalid_json(monkeypatch):
-    _set_llm_env(monkeypatch)
-    agent = IdiomsAgent()
-    result = agent._parse_issues("not valid json")
+def test_llm_scanner_parse_issues_invalid_json(monkeypatch):
+    dummy_client = MagicMock()
+    scanner = LLMScanner(
+        client=dummy_client,
+        model="GPT 4.1",
+        prompt_registry=PromptRegistry(),
+    )
+    result = scanner._parse_issues("not valid json")
     assert result == []
 
 

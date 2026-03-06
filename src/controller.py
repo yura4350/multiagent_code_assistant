@@ -1,5 +1,6 @@
 import logging
 
+from src.agents.clean_code_agent import CleanCodeAgent
 from src.agents.code_style_agent import StyleAgent
 from src.agents.idioms_agent import IdiomsAgent
 from src.agents.testing_agent import TestingAgent
@@ -25,6 +26,8 @@ class Controller:
             agent = IdiomsAgent()
         elif agent_name == "TESTS":
             agent = TestingAgent()
+        elif agent_name == "CLEAN_CODE":
+            agent = CleanCodeAgent()
         else:
             raise ValueError(f"Unknown agent: {agent_name}")
 
@@ -38,7 +41,7 @@ class Controller:
 
         if planned_input.apply:
             logger.info("Applying auto-fixes")
-            agent.apply(suggestions,planned_input.file_path)
+            agent.apply(suggestions, planned_input.file_path)
             issues = agent.scan(planned_input.file_path)  # rescan current state only
 
         is_valid = agent.validate(issues)
