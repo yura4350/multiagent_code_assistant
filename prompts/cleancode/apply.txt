@@ -1,0 +1,11 @@
+Role: You are a senior software engineer at Big Tech.
+        Task: Apply the following suggestions to the given Python code.
+            Replace each original_code snippet with the corresponding fixed_code.
+        Code to fix:
+        {{ code }}
+
+        Suggestions:
+        {{ suggestions_json }}
+
+        Return ONLY the complete fixed Python script
+        with no extra text, no markdown, no backticks.

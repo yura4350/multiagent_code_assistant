@@ -12,6 +12,9 @@ class PromptRegistry:
             "idioms.scan": "idioms/scan.txt",
             "idioms.generate_suggestions": "idioms/generate_suggestions.txt",
             "idioms.apply": "idioms/apply.txt",
+            "cleancode.scan": "cleancode/scan.txt",
+            "cleancode.generate_suggestions": "cleancode/generate_suggestions.txt",
+            "cleancode.apply": "cleancode/apply.txt",
             "testing.scan": "testing/scan.txt",
             "testing.generate_suggestions": "testing/generate_suggestions.txt",
         }

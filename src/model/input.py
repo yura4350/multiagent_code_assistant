@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
-AGENTS = ["CODE_STYLE", "IDIOMS", "TESTS", "DESIGN"]
+AGENTS = ["CODE_STYLE", "IDIOMS", "TESTS", "CLEAN_CODE"]
 
 
 @dataclass
