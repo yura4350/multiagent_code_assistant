@@ -101,6 +101,21 @@ interface StoredSuggestions {
 }
 const documentSuggestions = new Map<string, StoredSuggestions>();
 
+async function writeTestFile(testUri: vscode.Uri, content: string): Promise<void> {
+	const edit = new vscode.WorkspaceEdit();
+	try {
+		// File exists — append to end
+		const doc = await vscode.workspace.openTextDocument(testUri);
+		edit.insert(testUri, doc.lineAt(doc.lineCount - 1).range.end, '\n\n' + content);
+	} catch {
+		// File doesn't exist — create it
+		edit.createFile(testUri, { overwrite: false });
+		edit.insert(testUri, new vscode.Position(0, 0), content);
+	}
+	await vscode.workspace.applyEdit(edit);
+	await vscode.window.showTextDocument(testUri);
+}
+
 function deriveTestFileUri(sourceUri: vscode.Uri, testFileName: string): vscode.Uri | undefined {
 	const workspaceFolders = vscode.workspace.workspaceFolders;
 	if (!workspaceFolders || workspaceFolders.length === 0) { return undefined; }
@@ -155,13 +170,7 @@ export function activate(context: vscode.ExtensionContext) {
 			const applyData = await applyResponse.json() as ApplyResponse;
 			if (stored.agent === 'TESTS' && applyData.test_file_name) {
 				const testUri = deriveTestFileUri(documentUri, applyData.test_file_name);
-				if (testUri) {
-					const edit = new vscode.WorkspaceEdit();
-					edit.createFile(testUri, { overwrite: false, ignoreIfExists: true });
-					edit.insert(testUri, new vscode.Position(0, 0), applyData.fixed_content);
-					await vscode.workspace.applyEdit(edit);
-					await vscode.window.showTextDocument(testUri);
-				}
+				if (testUri) { await writeTestFile(testUri, applyData.fixed_content); }
 			} else {
 				const edit = new vscode.WorkspaceEdit();
 				edit.replace(documentUri, new vscode.Range(document.positionAt(0), document.positionAt(stored.fileContent.length)), applyData.fixed_content);
@@ -191,13 +200,7 @@ export function activate(context: vscode.ExtensionContext) {
 			const applyData = await applyResponse.json() as ApplyResponse;
 			if (stored.agent === 'TESTS' && applyData.test_file_name) {
 				const testUri = deriveTestFileUri(documentUri, applyData.test_file_name);
-				if (testUri) {
-					const edit = new vscode.WorkspaceEdit();
-					edit.createFile(testUri, { overwrite: false, ignoreIfExists: true });
-					edit.insert(testUri, new vscode.Position(0, 0), applyData.fixed_content);
-					await vscode.workspace.applyEdit(edit);
-					await vscode.window.showTextDocument(testUri);
-				}
+				if (testUri) { await writeTestFile(testUri, applyData.fixed_content); }
 			} else {
 				const edit = new vscode.WorkspaceEdit();
 				edit.replace(documentUri, new vscode.Range(document.positionAt(0), document.positionAt(stored.fileContent.length)), applyData.fixed_content);
@@ -396,11 +399,7 @@ export function activate(context: vscode.ExtensionContext) {
 								'Apply', 'Cancel'
 							);
 							if (confirm === 'Apply') {
-								const workspaceEdit = new vscode.WorkspaceEdit();
-								workspaceEdit.createFile(testUri, { overwrite: false, ignoreIfExists: true });
-								workspaceEdit.insert(testUri, new vscode.Position(0, 0), applyData.fixed_content);
-								await vscode.workspace.applyEdit(workspaceEdit);
-								await vscode.window.showTextDocument(testUri);
+								await writeTestFile(testUri, applyData.fixed_content);
 								outputChannel.appendLine(`\nTests written to ${applyData.test_file_name}.`);
 							}
 						}
