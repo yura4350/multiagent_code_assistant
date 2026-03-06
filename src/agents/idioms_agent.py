@@ -121,18 +121,6 @@ class IdiomsAgent(BaseAgent):
             logger.info("File Successfully Read")
         return content
 
-    def _parse_issues(self, response: str) -> list[Issue]:
-        """Parse LLM JSON response into a list of Issue objects."""
-        try:
-            clean = response.strip().removeprefix("```json").removesuffix("```").strip()
-            data = json.loads(clean)
-            issues = [Issue(**item) for item in data]
-            logger.info("Parsed %d issues from LLM response", len(issues))
-            return issues
-        except (json.JSONDecodeError, TypeError) as e:
-            logger.error("Failed to parse issues from LLM response: %s", e)
-            return []
-
     def _parse_applied_suggestion(self, response: str, file_path: str) -> None:
         """Write the LLM-returned fixed code back to the file."""
         clean = response.strip().removeprefix("```python").removesuffix("```").strip()
