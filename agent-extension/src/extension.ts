@@ -325,15 +325,19 @@ export function activate(context: vscode.ExtensionContext) {
 		try {
 			// Full Analysis (All Agents)
 			if (operationPick.label === 'Scan Issue & Suggest Fixes (for all agents)') {
-				const response = await fetch(`${backendUrl}/analyze`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ file_content: fileContent, file_name: fileName, agent: null, apply: true })
-				});
-				if (!response.ok) {
-					throw new Error(`Server error: ${response.status}`);
+				const status1 = vscode.window.setStatusBarMessage('$(sync~spin) AI Assistant: Running all agents…');
+				let data: AnalyzeResponse;
+				try {
+					const response = await fetch(`${backendUrl}/analyze`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ file_content: fileContent, file_name: fileName, agent: null, apply: true })
+					});
+					if (!response.ok) { throw new Error(`Server error: ${response.status}`); }
+					data = await response.json() as AnalyzeResponse;
+				} finally {
+					status1.dispose();
 				}
-				const data = await response.json() as AnalyzeResponse;
 				outputChannel.appendLine(`Received ${data.issues.length} issue(s), ${data.suggestions.length} suggestion(s).`);
 				printIssues(data.issues, outputChannel);
 				printSuggestions(data.suggestions, outputChannel);
@@ -386,45 +390,80 @@ export function activate(context: vscode.ExtensionContext) {
 
 			// Scan
 			} else if (operationPick.label === 'Scan for Issues') {
-				const scanResponse = await fetch(`${backendUrl}/agents/${agentPick}/scan`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ file_content: fileContent, file_name: fileName })
-				});
-				if (!scanResponse.ok) {
-					throw new Error(`Server error (scan): ${scanResponse.status}`);
+				const status2 = vscode.window.setStatusBarMessage('$(sync~spin) AI Assistant: Scanning for issues…');
+				let scanData: ScanResponse;
+				try {
+					const scanResponse = await fetch(`${backendUrl}/agents/${agentPick}/scan`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ file_content: fileContent, file_name: fileName })
+					});
+					if (!scanResponse.ok) {
+						const body = await scanResponse.text();
+						throw new Error(`Server error (scan): ${scanResponse.status} — ${body}`);
+					}
+					scanData = await scanResponse.json() as ScanResponse;
+				} finally {
+					status2.dispose();
 				}
-				const scanData = await scanResponse.json() as ScanResponse;
 				outputChannel.appendLine(`Received ${scanData.issues.length} issue(s).`);
 				printIssues(scanData.issues, outputChannel);
-			diagnosticCollection.set(document.uri, issuesToDiagnostics(scanData.issues, document));
+				diagnosticCollection.set(document.uri, issuesToDiagnostics(scanData.issues, document));
 
 			// Scan and Suggest
 			} else {
-				const scanResponse = await fetch(`${backendUrl}/agents/${agentPick}/scan`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ file_content: fileContent, file_name: fileName })
-				});
-				if (!scanResponse.ok) {
-					throw new Error(`Server error (scan): ${scanResponse.status}`);
-				}
-				const scanData = await scanResponse.json() as ScanResponse;
+				let scanData: ScanResponse;
+				let suggestData: SuggestResponse;
+				let applyData: ApplyResponse | null = null;
+				const status3 = vscode.window.setStatusBarMessage('$(sync~spin) AI Assistant: Scanning…');
+				try {
+					const scanResponse = await fetch(`${backendUrl}/agents/${agentPick}/scan`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ file_content: fileContent, file_name: fileName })
+					});
+					if (!scanResponse.ok) {
+						const body = await scanResponse.text();
+						throw new Error(`Server error (scan): ${scanResponse.status} — ${body}`);
+					}
+					scanData = await scanResponse.json() as ScanResponse;
 
-				const suggestResponse = await fetch(`${backendUrl}/agents/${agentPick}/suggest`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ file_content: fileContent, file_name: fileName, issues: scanData.issues })
-				});
-				if (!suggestResponse.ok) {
-					throw new Error(`Server error (suggest): ${suggestResponse.status}`);
+					status3.dispose();
+					const status4 = vscode.window.setStatusBarMessage('$(sync~spin) AI Assistant: Generating suggestions…');
+					try {
+						const suggestResponse = await fetch(`${backendUrl}/agents/${agentPick}/suggest`, {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ file_content: fileContent, file_name: fileName, issues: scanData.issues })
+						});
+						if (!suggestResponse.ok) { throw new Error(`Server error (suggest): ${suggestResponse.status}`); }
+						suggestData = await suggestResponse.json() as SuggestResponse;
+					} finally {
+						status4.dispose();
+					}
+
+					if (suggestData.suggestions.length > 0) {
+						const status5 = vscode.window.setStatusBarMessage('$(sync~spin) AI Assistant: Applying fixes…');
+						try {
+							const applyResponse = await fetch(`${backendUrl}/agents/${agentPick}/apply`, {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ file_content: fileContent, file_name: fileName, suggestions: suggestData.suggestions })
+							});
+							if (!applyResponse.ok) { throw new Error(`Server error (apply): ${applyResponse.status}`); }
+							applyData = await applyResponse.json() as ApplyResponse;
+						} finally {
+							status5.dispose();
+						}
+					}
+				} finally {
+					status3.dispose();
 				}
-				const suggestData = await suggestResponse.json() as SuggestResponse;
 
 				outputChannel.appendLine(`Received ${scanData.issues.length} issue(s), ${suggestData.suggestions.length} suggestion(s).`);
 				printIssues(scanData.issues, outputChannel);
 				printSuggestions(suggestData.suggestions, outputChannel);
-			diagnosticCollection.set(document.uri, issuesToDiagnostics(scanData.issues, document));
+				diagnosticCollection.set(document.uri, issuesToDiagnostics(scanData.issues, document));
 				documentSuggestions.set(document.uri.toString(), {
 					fileContent,
 					suggestions: suggestData.suggestions,
@@ -433,17 +472,7 @@ export function activate(context: vscode.ExtensionContext) {
 				});
 
 				// Optional apply with diff preview
-				if (suggestData.suggestions.length > 0) {
-					// Fetch fixed content first so we can show a diff
-					const applyResponse = await fetch(`${backendUrl}/agents/${agentPick}/apply`, {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ file_content: fileContent, file_name: fileName, suggestions: suggestData.suggestions })
-					});
-					if (!applyResponse.ok) {
-						throw new Error(`Server error (apply): ${applyResponse.status}`);
-					}
-					const applyData = await applyResponse.json() as ApplyResponse;
+				if (applyData) {
 
 					if (agentPick === 'TESTS' && applyData.test_file_name) {
 						// For TESTS agent: create/update the test file instead of modifying the source
