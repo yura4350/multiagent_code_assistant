@@ -11,9 +11,9 @@ from src.model.llm_scanner import LLMScanner
 from src.model.prompt_registry import PromptRegistry
 from src.model.validator import Validator
 from src.models.issue import Issue
-from src.models.suggestion import Suggestion
 
 logger = logging.getLogger(__name__)
+
 
 class CleanCodeAgent(BaseAgent):
     def __init__(self) -> None:
@@ -71,7 +71,7 @@ class CleanCodeAgent(BaseAgent):
     def validate(self, issues: list[Issue]) -> bool:
         validator = Validator(issues)
         return validator.validate()
-    
+
     def apply(self, suggestions, file_path):
         """
         Suggestion contains an issue with original code and fixed code.
