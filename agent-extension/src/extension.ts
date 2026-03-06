@@ -19,9 +19,19 @@ interface Suggestion {
 	confidence: number | null;
 }
 
+interface AgentApplyResult {
+	agent: string;
+	issues: Issue[];
+	suggestions: Suggestion[];
+	fixed_content: string;
+	remaining_issues: Issue[];
+	test_file_name?: string;
+}
+
 interface AnalyzeResponse {
 	issues: Issue[];
 	suggestions: Suggestion[];
+	apply_results?: AgentApplyResult[];
 }
 
 interface ScanResponse {
@@ -35,6 +45,7 @@ interface SuggestResponse {
 interface ApplyResponse {
 	fixed_content: string;
 	remaining_issues: Issue[];
+	test_file_name?: string;
 }
 
 function printIssues(issues: Issue[], outputChannel: vscode.OutputChannel) {
@@ -100,6 +111,40 @@ interface StoredSuggestions {
 }
 const documentSuggestions = new Map<string, StoredSuggestions>();
 
+async function writeTestFile(testUri: vscode.Uri, content: string): Promise<void> {
+	const edit = new vscode.WorkspaceEdit();
+	try {
+		// File exists — append to end
+		const doc = await vscode.workspace.openTextDocument(testUri);
+		edit.insert(testUri, doc.lineAt(doc.lineCount - 1).range.end, '\n\n' + content);
+	} catch {
+		// File doesn't exist — create it
+		edit.createFile(testUri, { overwrite: false });
+		edit.insert(testUri, new vscode.Position(0, 0), content);
+	}
+	await vscode.workspace.applyEdit(edit);
+	await vscode.window.showTextDocument(testUri);
+}
+
+function deriveTestFileUri(sourceUri: vscode.Uri, testFileName: string): vscode.Uri | undefined {
+	const workspaceFolders = vscode.workspace.workspaceFolders;
+	if (!workspaceFolders || workspaceFolders.length === 0) { return undefined; }
+	const wsRoot = workspaceFolders[0].uri;
+	const wsPath = wsRoot.fsPath;
+	const sourcePath = sourceUri.fsPath;
+	const relPath = sourcePath.startsWith(wsPath) ? sourcePath.slice(wsPath.length + 1) : sourcePath;
+
+	let testDir: string;
+	if (relPath.startsWith('src/') || relPath.startsWith('src\\')) {
+		testDir = 'tests/src';
+	} else if (relPath.startsWith('data/') || relPath.startsWith('data\\')) {
+		testDir = 'tests/data';
+	} else {
+		testDir = 'tests';
+	}
+	return vscode.Uri.joinPath(wsRoot, testDir, testFileName);
+}
+
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
@@ -133,10 +178,15 @@ export function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 			const applyData = await applyResponse.json() as ApplyResponse;
-			const edit = new vscode.WorkspaceEdit();
-			edit.replace(documentUri, new vscode.Range(document.positionAt(0), document.positionAt(stored.fileContent.length)), applyData.fixed_content);
-			await vscode.workspace.applyEdit(edit);
-			diagnosticCollection.set(documentUri, issuesToDiagnostics(applyData.remaining_issues, document));
+			if (stored.agent === 'TESTS' && applyData.test_file_name) {
+				const testUri = deriveTestFileUri(documentUri, applyData.test_file_name);
+				if (testUri) { await writeTestFile(testUri, applyData.fixed_content); }
+			} else {
+				const edit = new vscode.WorkspaceEdit();
+				edit.replace(documentUri, new vscode.Range(document.positionAt(0), document.positionAt(stored.fileContent.length)), applyData.fixed_content);
+				await vscode.workspace.applyEdit(edit);
+				diagnosticCollection.set(documentUri, issuesToDiagnostics(applyData.remaining_issues, document));
+			}
 		}
 	);
 
@@ -158,10 +208,15 @@ export function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 			const applyData = await applyResponse.json() as ApplyResponse;
-			const edit = new vscode.WorkspaceEdit();
-			edit.replace(documentUri, new vscode.Range(document.positionAt(0), document.positionAt(stored.fileContent.length)), applyData.fixed_content);
-			await vscode.workspace.applyEdit(edit);
-			diagnosticCollection.set(documentUri, issuesToDiagnostics(applyData.remaining_issues, document));
+			if (stored.agent === 'TESTS' && applyData.test_file_name) {
+				const testUri = deriveTestFileUri(documentUri, applyData.test_file_name);
+				if (testUri) { await writeTestFile(testUri, applyData.fixed_content); }
+			} else {
+				const edit = new vscode.WorkspaceEdit();
+				edit.replace(documentUri, new vscode.Range(document.positionAt(0), document.positionAt(stored.fileContent.length)), applyData.fixed_content);
+				await vscode.workspace.applyEdit(edit);
+				diagnosticCollection.set(documentUri, issuesToDiagnostics(applyData.remaining_issues, document));
+			}
 		}
 	);
 
@@ -231,16 +286,16 @@ export function activate(context: vscode.ExtensionContext) {
 		const fileName = document.fileName.split('/').pop();
 
 		// Read backend server URL from configuration
-		// Currently defaults to the dev server http://vcm-52409.vm.duke.edu:4003
+		// Default URL is set in package.json (aiAssistant.backendUrl)
 		const config = vscode.workspace.getConfiguration('aiAssistant');
-		const backendUrl = config.get<string>('backendUrl', 'http://vcm-52418.vm.duke.edu:4003/');
+		const backendUrl = config.get<string>('backendUrl')!;
 
 		// Pick operation
 		const operationPick = await vscode.window.showQuickPick(
 			[
-				{ label: 'Scan', description: 'Find issues only' },
-				{ label: 'Scan + Suggest', description: 'Find issues, get fix suggestions, and optionally apply them' },
-				{ label: 'Analyze All', description: 'Run all agents (scan + suggest)' },
+				{ label: 'Scan for Issues', description: 'Find issues only' },
+				{ label: 'Scan Issues & Suggest Fixes (for one agent)', description: 'Find issues, get fix suggestions, and optionally apply them' },
+				{ label: 'Scan Issue & Suggest Fixes (for all agents)', description: 'Run all agents (scan + suggest)' },
 			],
 			{ placeHolder: 'Select operation' }
 		);
@@ -249,78 +304,166 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		// Pick agent (if not anayze all)
+		// Pick agent (if not analyze all)
 		let agentPick: string | undefined;
-		if (operationPick.label !== 'Analyze All') {
-			agentPick = await vscode.window.showQuickPick(
-				['CODE_STYLE', 'IDIOMS', 'TESTS', 'CLEAN_CODE'],
-				{ placeHolder: 'Select an agent' }
-			);
-			if (!agentPick) {
+		if (operationPick.label !== 'Scan Issue & Suggest Fixes (for all agents)') {
+			const agentOptions = [
+				{ label: 'Code Style', description: 'Check formatting and naming conventions', value: 'CODE_STYLE' },
+				{ label: 'Idioms', description: 'Check for language-idiomatic patterns', value: 'IDIOMS' },
+				{ label: 'Tests', description: 'Check test quality and coverage', value: 'TESTS' },
+				{ label: 'Clean Code', description: 'Check for clean code principles', value: 'CLEAN_CODE' },
+			];
+			const agentSelection = await vscode.window.showQuickPick(agentOptions, { placeHolder: 'Select an agent' });
+			if (!agentSelection) {
 				return;
 			}
+			agentPick = agentSelection.value;
 		}
 
 		outputChannel.appendLine(`[${new Date().toISOString()}] ${operationPick.label}: ${fileName} (${fileContent.length} chars) → ${backendUrl} [agent: ${agentPick ?? 'ALL'}]`);
 
 		try {
-			// Anaylze All
-			if (operationPick.label === 'Analyze All') {
-				const response = await fetch(`${backendUrl}/analyze`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ file_content: fileContent, file_name: fileName, agent: null })
-				});
-				if (!response.ok) {
-					throw new Error(`Server error: ${response.status}`);
+			// Full Analysis (All Agents)
+			if (operationPick.label === 'Scan Issue & Suggest Fixes (for all agents)') {
+				const status1 = vscode.window.setStatusBarMessage('$(sync~spin) AI Assistant: Running all agents…');
+				let data: AnalyzeResponse;
+				try {
+					const response = await fetch(`${backendUrl}/analyze`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ file_content: fileContent, file_name: fileName, agent: null, apply: true })
+					});
+					if (!response.ok) { throw new Error(`Server error: ${response.status}`); }
+					data = await response.json() as AnalyzeResponse;
+				} finally {
+					status1.dispose();
 				}
-				const data = await response.json() as AnalyzeResponse;
 				outputChannel.appendLine(`Received ${data.issues.length} issue(s), ${data.suggestions.length} suggestion(s).`);
 				printIssues(data.issues, outputChannel);
 				printSuggestions(data.suggestions, outputChannel);
-			diagnosticCollection.set(document.uri, issuesToDiagnostics(data.issues, document));
+				diagnosticCollection.set(document.uri, issuesToDiagnostics(data.issues, document));
+
+				// Prompt to apply fixes per agent
+				for (const result of data.apply_results ?? []) {
+					if (result.suggestions.length === 0) { continue; }
+
+					if (result.agent === 'TESTS' && result.test_file_name) {
+						const testUri = deriveTestFileUri(document.uri, result.test_file_name);
+						if (testUri) {
+							const confirm = await vscode.window.showInformationMessage(
+								`[${result.agent}] Create/update test file "${result.test_file_name}" with ${result.suggestions.length} suggestion(s)?`,
+								'Apply', 'Skip'
+							);
+							if (confirm === 'Apply') {
+								await writeTestFile(testUri, result.fixed_content);
+								outputChannel.appendLine(`\n[${result.agent}] Tests written to ${result.test_file_name}.`);
+							}
+						}
+					} else {
+						const previewUri = vscode.Uri.parse(`${previewScheme}:${fileName} (${result.agent} Fixed)`);
+						previewContentMap.set(previewUri.toString(), result.fixed_content);
+						await vscode.commands.executeCommand(
+							'vscode.diff',
+							document.uri,
+							previewUri,
+							`AI Assistant [${result.agent}]: ${fileName} — Current ↔ Fixed`
+						);
+						const confirm = await vscode.window.showInformationMessage(
+							`[${result.agent}] Apply ${result.suggestions.length} suggestion(s) to ${fileName}?`,
+							'Apply', 'Skip'
+						);
+						await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+						if (confirm === 'Apply') {
+							const workspaceEdit = new vscode.WorkspaceEdit();
+							workspaceEdit.replace(
+								document.uri,
+								new vscode.Range(document.positionAt(0), document.positionAt(fileContent.length)),
+								result.fixed_content
+							);
+							await vscode.workspace.applyEdit(workspaceEdit);
+							outputChannel.appendLine(`\n[${result.agent}] Fixes applied. Remaining issues: ${result.remaining_issues.length}`);
+							printIssues(result.remaining_issues, outputChannel);
+							diagnosticCollection.set(document.uri, issuesToDiagnostics(result.remaining_issues, document));
+						}
+					}
+				}
 
 			// Scan
-			} else if (operationPick.label === 'Scan') {
-				const scanResponse = await fetch(`${backendUrl}/agents/${agentPick}/scan`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ file_content: fileContent, file_name: fileName })
-				});
-				if (!scanResponse.ok) {
-					throw new Error(`Server error (scan): ${scanResponse.status}`);
+			} else if (operationPick.label === 'Scan for Issues') {
+				const status2 = vscode.window.setStatusBarMessage('$(sync~spin) AI Assistant: Scanning for issues…');
+				let scanData: ScanResponse;
+				try {
+					const scanResponse = await fetch(`${backendUrl}/agents/${agentPick}/scan`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ file_content: fileContent, file_name: fileName })
+					});
+					if (!scanResponse.ok) {
+						const body = await scanResponse.text();
+						throw new Error(`Server error (scan): ${scanResponse.status} — ${body}`);
+					}
+					scanData = await scanResponse.json() as ScanResponse;
+				} finally {
+					status2.dispose();
 				}
-				const scanData = await scanResponse.json() as ScanResponse;
 				outputChannel.appendLine(`Received ${scanData.issues.length} issue(s).`);
 				printIssues(scanData.issues, outputChannel);
-			diagnosticCollection.set(document.uri, issuesToDiagnostics(scanData.issues, document));
+				diagnosticCollection.set(document.uri, issuesToDiagnostics(scanData.issues, document));
 
 			// Scan and Suggest
 			} else {
-				const scanResponse = await fetch(`${backendUrl}/agents/${agentPick}/scan`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ file_content: fileContent, file_name: fileName })
-				});
-				if (!scanResponse.ok) {
-					throw new Error(`Server error (scan): ${scanResponse.status}`);
-				}
-				const scanData = await scanResponse.json() as ScanResponse;
+				let scanData: ScanResponse;
+				let suggestData: SuggestResponse;
+				let applyData: ApplyResponse | null = null;
+				const status3 = vscode.window.setStatusBarMessage('$(sync~spin) AI Assistant: Scanning…');
+				try {
+					const scanResponse = await fetch(`${backendUrl}/agents/${agentPick}/scan`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ file_content: fileContent, file_name: fileName })
+					});
+					if (!scanResponse.ok) {
+						const body = await scanResponse.text();
+						throw new Error(`Server error (scan): ${scanResponse.status} — ${body}`);
+					}
+					scanData = await scanResponse.json() as ScanResponse;
 
-				const suggestResponse = await fetch(`${backendUrl}/agents/${agentPick}/suggest`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ file_content: fileContent, file_name: fileName, issues: scanData.issues })
-				});
-				if (!suggestResponse.ok) {
-					throw new Error(`Server error (suggest): ${suggestResponse.status}`);
+					status3.dispose();
+					const status4 = vscode.window.setStatusBarMessage('$(sync~spin) AI Assistant: Generating suggestions…');
+					try {
+						const suggestResponse = await fetch(`${backendUrl}/agents/${agentPick}/suggest`, {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ file_content: fileContent, file_name: fileName, issues: scanData.issues })
+						});
+						if (!suggestResponse.ok) { throw new Error(`Server error (suggest): ${suggestResponse.status}`); }
+						suggestData = await suggestResponse.json() as SuggestResponse;
+					} finally {
+						status4.dispose();
+					}
+
+					if (suggestData.suggestions.length > 0) {
+						const status5 = vscode.window.setStatusBarMessage('$(sync~spin) AI Assistant: Applying fixes…');
+						try {
+							const applyResponse = await fetch(`${backendUrl}/agents/${agentPick}/apply`, {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ file_content: fileContent, file_name: fileName, suggestions: suggestData.suggestions })
+							});
+							if (!applyResponse.ok) { throw new Error(`Server error (apply): ${applyResponse.status}`); }
+							applyData = await applyResponse.json() as ApplyResponse;
+						} finally {
+							status5.dispose();
+						}
+					}
+				} finally {
+					status3.dispose();
 				}
-				const suggestData = await suggestResponse.json() as SuggestResponse;
 
 				outputChannel.appendLine(`Received ${scanData.issues.length} issue(s), ${suggestData.suggestions.length} suggestion(s).`);
 				printIssues(scanData.issues, outputChannel);
 				printSuggestions(suggestData.suggestions, outputChannel);
-			diagnosticCollection.set(document.uri, issuesToDiagnostics(scanData.issues, document));
+				diagnosticCollection.set(document.uri, issuesToDiagnostics(scanData.issues, document));
 				documentSuggestions.set(document.uri.toString(), {
 					fileContent,
 					suggestions: suggestData.suggestions,
@@ -329,48 +472,53 @@ export function activate(context: vscode.ExtensionContext) {
 				});
 
 				// Optional apply with diff preview
-				if (suggestData.suggestions.length > 0) {
-					// Fetch fixed content first so we can show a diff
-					const applyResponse = await fetch(`${backendUrl}/agents/${agentPick}/apply`, {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ file_content: fileContent, file_name: fileName, suggestions: suggestData.suggestions })
-					});
-					if (!applyResponse.ok) {
-						throw new Error(`Server error (apply): ${applyResponse.status}`);
-					}
-					const applyData = await applyResponse.json() as ApplyResponse;
+				if (applyData) {
 
-					// Show diff between current file and fixed content
-					const previewUri = vscode.Uri.parse(`${previewScheme}:${fileName} (Fixed)`);
-					previewContentMap.set(previewUri.toString(), applyData.fixed_content);
-					await vscode.commands.executeCommand(
-						'vscode.diff',
-						document.uri,
-						previewUri,
-						`AI Assistant: ${fileName} — Current ↔ Fixed`
-					);
-
-					const confirm = await vscode.window.showInformationMessage(
-						`Apply ${suggestData.suggestions.length} suggestion(s) to ${fileName}?`,
-						'Apply', 'Cancel'
-					);
-
-					// Close the diff editor
-					await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-
-					if (confirm === 'Apply') {
-						const workspaceEdit = new vscode.WorkspaceEdit();
-						workspaceEdit.replace(
+					if (agentPick === 'TESTS' && applyData.test_file_name) {
+						// For TESTS agent: create/update the test file instead of modifying the source
+						const testUri = deriveTestFileUri(document.uri, applyData.test_file_name);
+						if (testUri) {
+							const confirm = await vscode.window.showInformationMessage(
+								`Create/update test file "${applyData.test_file_name}" with ${suggestData.suggestions.length} suggestion(s)?`,
+								'Apply', 'Cancel'
+							);
+							if (confirm === 'Apply') {
+								await writeTestFile(testUri, applyData.fixed_content);
+								outputChannel.appendLine(`\nTests written to ${applyData.test_file_name}.`);
+							}
+						}
+					} else {
+						// Show diff between current file and fixed content
+						const previewUri = vscode.Uri.parse(`${previewScheme}:${fileName} (Fixed)`);
+						previewContentMap.set(previewUri.toString(), applyData.fixed_content);
+						await vscode.commands.executeCommand(
+							'vscode.diff',
 							document.uri,
-							new vscode.Range(document.positionAt(0), document.positionAt(fileContent.length)),
-							applyData.fixed_content
+							previewUri,
+							`AI Assistant: ${fileName} — Current ↔ Fixed`
 						);
-						await vscode.workspace.applyEdit(workspaceEdit);
 
-						outputChannel.appendLine(`\nFixes applied. Remaining issues: ${applyData.remaining_issues.length}`);
-						printIssues(applyData.remaining_issues, outputChannel);
-						diagnosticCollection.set(document.uri, issuesToDiagnostics(applyData.remaining_issues, document));
+						const confirm = await vscode.window.showInformationMessage(
+							`Apply ${suggestData.suggestions.length} suggestion(s) to ${fileName}?`,
+							'Apply', 'Cancel'
+						);
+
+						// Close the diff editor
+						await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+
+						if (confirm === 'Apply') {
+							const workspaceEdit = new vscode.WorkspaceEdit();
+							workspaceEdit.replace(
+								document.uri,
+								new vscode.Range(document.positionAt(0), document.positionAt(fileContent.length)),
+								applyData.fixed_content
+							);
+							await vscode.workspace.applyEdit(workspaceEdit);
+
+							outputChannel.appendLine(`\nFixes applied. Remaining issues: ${applyData.remaining_issues.length}`);
+							printIssues(applyData.remaining_issues, outputChannel);
+							diagnosticCollection.set(document.uri, issuesToDiagnostics(applyData.remaining_issues, document));
+						}
 					}
 				}
 			}
