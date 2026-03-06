@@ -19,9 +19,19 @@ interface Suggestion {
 	confidence: number | null;
 }
 
+interface AgentApplyResult {
+	agent: string;
+	issues: Issue[];
+	suggestions: Suggestion[];
+	fixed_content: string;
+	remaining_issues: Issue[];
+	test_file_name?: string;
+}
+
 interface AnalyzeResponse {
 	issues: Issue[];
 	suggestions: Suggestion[];
+	apply_results?: AgentApplyResult[];
 }
 
 interface ScanResponse {
@@ -318,7 +328,7 @@ export function activate(context: vscode.ExtensionContext) {
 				const response = await fetch(`${backendUrl}/analyze`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ file_content: fileContent, file_name: fileName, agent: null })
+					body: JSON.stringify({ file_content: fileContent, file_name: fileName, agent: null, apply: true })
 				});
 				if (!response.ok) {
 					throw new Error(`Server error: ${response.status}`);
@@ -327,7 +337,52 @@ export function activate(context: vscode.ExtensionContext) {
 				outputChannel.appendLine(`Received ${data.issues.length} issue(s), ${data.suggestions.length} suggestion(s).`);
 				printIssues(data.issues, outputChannel);
 				printSuggestions(data.suggestions, outputChannel);
-			diagnosticCollection.set(document.uri, issuesToDiagnostics(data.issues, document));
+				diagnosticCollection.set(document.uri, issuesToDiagnostics(data.issues, document));
+
+				// Prompt to apply fixes per agent
+				for (const result of data.apply_results ?? []) {
+					if (result.suggestions.length === 0) { continue; }
+
+					if (result.agent === 'TESTS' && result.test_file_name) {
+						const testUri = deriveTestFileUri(document.uri, result.test_file_name);
+						if (testUri) {
+							const confirm = await vscode.window.showInformationMessage(
+								`[${result.agent}] Create/update test file "${result.test_file_name}" with ${result.suggestions.length} suggestion(s)?`,
+								'Apply', 'Skip'
+							);
+							if (confirm === 'Apply') {
+								await writeTestFile(testUri, result.fixed_content);
+								outputChannel.appendLine(`\n[${result.agent}] Tests written to ${result.test_file_name}.`);
+							}
+						}
+					} else {
+						const previewUri = vscode.Uri.parse(`${previewScheme}:${fileName} (${result.agent} Fixed)`);
+						previewContentMap.set(previewUri.toString(), result.fixed_content);
+						await vscode.commands.executeCommand(
+							'vscode.diff',
+							document.uri,
+							previewUri,
+							`AI Assistant [${result.agent}]: ${fileName} — Current ↔ Fixed`
+						);
+						const confirm = await vscode.window.showInformationMessage(
+							`[${result.agent}] Apply ${result.suggestions.length} suggestion(s) to ${fileName}?`,
+							'Apply', 'Skip'
+						);
+						await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+						if (confirm === 'Apply') {
+							const workspaceEdit = new vscode.WorkspaceEdit();
+							workspaceEdit.replace(
+								document.uri,
+								new vscode.Range(document.positionAt(0), document.positionAt(fileContent.length)),
+								result.fixed_content
+							);
+							await vscode.workspace.applyEdit(workspaceEdit);
+							outputChannel.appendLine(`\n[${result.agent}] Fixes applied. Remaining issues: ${result.remaining_issues.length}`);
+							printIssues(result.remaining_issues, outputChannel);
+							diagnosticCollection.set(document.uri, issuesToDiagnostics(result.remaining_issues, document));
+						}
+					}
+				}
 
 			// Scan
 			} else if (operationPick.label === 'Scan for Issues') {
