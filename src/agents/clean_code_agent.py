@@ -49,10 +49,28 @@ class CleanCodeAgent(BaseAgent):
         return llm_scanner.scan(prompt_name="cleancode.scan", context=context)
 
     def get_suggestions(self, issues, code):
-        return super().get_suggestions(issues, code)
+        """Provide suggestions based on the scanned file and identified issues"""
+        client = self._get_client()
+        model = self._get_model()
 
-    def validate(self, suggestion):
-        return super().validate(suggestion)
+        llm_generator = LLMGenerator(
+            client=client, model=model, prompt_registry=PromptRegistry()
+        )
+
+        context = {
+            "code": code,
+            "issues_json": json.dumps(
+                [issue.model_dump() for issue in issues], indent=2
+            ),
+        }
+
+        return llm_generator.generate_suggestions(
+            prompt_name="cleancode.generate_suggestions", context=context, issues=issues
+        )
+
+    def validate(self, issues: list[Issue]) -> bool:
+        validator = Validator(issues)
+        return validator.validate()
     
     def apply(self, suggestions, file_path):
         return super().apply(suggestions, file_path)
