@@ -73,7 +73,27 @@ class CleanCodeAgent(BaseAgent):
         return validator.validate()
     
     def apply(self, suggestions, file_path):
-        return super().apply(suggestions, file_path)
+        """
+        Suggestion contains an issue with original code and fixed code.
+        This functions aggregates these suggestions and provides updated code.
+        """
+        client = self._get_client()
+        model = self._get_model()
+
+        llm_applier = LLMApplier(
+            client=client, model=model, prompt_registry=PromptRegistry()
+        )
+
+        context = {
+            "code": self._read_file(file_path),
+            "suggestions_json": json.dumps(
+                [s.model_dump() for s in suggestions], indent=2
+            ),
+        }
+
+        return llm_applier.apply(
+            prompt_name="cleancode.apply", context=context, file_path=file_path
+        )
 
     def _read_file(self, file_path: str) -> str:
         with open(file_path, "r") as file:
