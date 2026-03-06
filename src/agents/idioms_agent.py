@@ -6,6 +6,7 @@ from openai import OpenAI
 
 from src.agents.abstract_agent import BaseAgent
 from src.model.llm_generator import LLMGenerator
+from src.model.llm_scanner import LLMScanner
 from src.model.prompt_registry import PromptRegistry
 from src.models.issue import Issue
 from src.models.suggestion import Suggestion
@@ -36,46 +37,15 @@ class IdiomsAgent(BaseAgent):
         client = self._get_client()
         model = self._get_model()
 
-        # # TODO: Replace with LLM Generator when ready. Removed for now
-        # client = OpenAI(
-        #     api_key=LLM_TOKEN,
-        #     base_url=LLM_API_URL,
-        # )
-        idiom_scanner_prompt = f"""
-        Role: You are a distinguished Python engineer
-        Task: Analyze the given Python code ONLY for Pythonic idiom violations.
-            Do NOT report spacing, formatting, or linting issues.
-
-        Focus ONLY on these kinds of issues:
-        - Using range(len(x)) instead of enumerate(x)
-        - Using a loop to build a list instead of a list comprehension
-        - Not using context managers (with) for file/resource handling
-        - Comparing to True/False/None with == instead of 'is' or truthiness
-        - Using mutable default arguments (def f(x=[]))
-        - Not using zip() to iterate over multiple lists
-        - Using map/filter when a comprehension is cleaner
-        - Not using any(), all(), sum() where appropriate
-        - Using bare except instead of specific exception types
-
-        Return ONLY a valid JSON array with no extra text, no markdown, no backticks.
-        Each element must have:
-            - line (int), message (str), severity (str), rule_id (str), column (int).
-
-        Code to analyze:
-        {content}
-        """
-
-        response = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": idiom_scanner_prompt}],
+        llm_scanner = LLMScanner(
+            client=client, model=model, prompt_registry=PromptRegistry()
         )
 
-        raw = response.choices[0].message.content
-        if raw:
-            logger.info("raw: %s", raw)
-            return self._parse_issues(raw)
+        context = {
+            "content": content,
+        }
 
-        return []
+        return llm_scanner.scan(prompt_name="idioms.scan", context=context)
 
     def get_suggestions(self, issues: list[Issue], code: str) -> list[Suggestion]:
         """Provide suggestions based on the scanned file and identified issues"""
