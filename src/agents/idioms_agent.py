@@ -5,11 +5,11 @@ import os
 from openai import OpenAI
 
 from src.agents.abstract_agent import BaseAgent
+from src.model.llm_applier import LLMApplier
 from src.model.llm_generator import LLMGenerator
 from src.model.llm_scanner import LLMScanner
-from src.model.validator import Validator
-from src.model.llm_applier import LLMApplier
 from src.model.prompt_registry import PromptRegistry
+from src.model.validator import Validator
 from src.models.issue import Issue
 from src.models.suggestion import Suggestion
 
@@ -87,10 +87,14 @@ class IdiomsAgent(BaseAgent):
 
         context = {
             "code": self._read_file(file_path),
-            "suggestions_json": json.dumps([s.model_dump() for s in suggestions], indent=2)
+            "suggestions_json": json.dumps(
+                [s.model_dump() for s in suggestions], indent=2
+            ),
         }
 
-        return llm_applier.apply(prompt_name="idioms.apply", context=context, file_path=file_path)
+        return llm_applier.apply(
+            prompt_name="idioms.apply", context=context, file_path=file_path
+        )
 
     def _read_file(self, file_path: str) -> str:
         with open(file_path, "r") as file:

@@ -5,18 +5,18 @@ from openai import OpenAI
 
 from src.model.prompt_registry import PromptRegistry
 from src.models.issue import Issue
-from src.models.suggestion import Suggestion
 
 logger = logging.getLogger(__name__)
 
-class LLMScanner:
 
+class LLMScanner:
     """Initialize the LLMScanner"""
+
     def __init__(self, client: OpenAI, model: str, prompt_registry: PromptRegistry):
         self.client = client
         self.model = model
         self.prompt_registry = prompt_registry
-    
+
     def scan(self, prompt_name: str, context: dict):
         template = self.prompt_registry.load(prompt_name)
         prompt = self._render_prompt(template, context)

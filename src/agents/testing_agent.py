@@ -1,4 +1,5 @@
 """Agent for identifying missing or insufficient tests in Python source files."""
+
 import json
 import logging
 import os
@@ -75,9 +76,7 @@ class TestingAgent(BaseAgent):
 
         return []
 
-    def get_suggestions(
-        self, issues: list[Issue], code: str
-    ) -> list[Suggestion]:
+    def get_suggestions(self, issues: list[Issue], code: str) -> list[Suggestion]:
         """Generate suggested test code for identified gaps."""
         client = OpenAI(
             api_key=LLM_TOKEN,
@@ -121,14 +120,13 @@ class TestingAgent(BaseAgent):
 
         return []
 
-
     def validate(self, suggestion) -> bool:
         """Validate that suggestion contains at least one test function."""
         if isinstance(suggestion, list):
             # Controller mistakenly passes issues list — just return True
             logger.warning("validate() called with a list, skipping validation.")
             return True
-        if not hasattr(suggestion, 'fixed_code'):
+        if not hasattr(suggestion, "fixed_code"):
             return True
         if not suggestion.fixed_code or not suggestion.fixed_code.strip():
             logger.warning("Suggestion has no fixed code, skipping.")
@@ -156,7 +154,9 @@ class TestingAgent(BaseAgent):
         # Append the new tests to the end of the file
         with open(test_file_path, "a", encoding="utf-8") as f:
             f.write("\n\n" + fixed_code_all)
-        logger.info("Appended %d suggestions to %s", len(valid_suggestions), test_file_path)
+        logger.info(
+            "Appended %d suggestions to %s", len(valid_suggestions), test_file_path
+        )
 
     def _read_file(self, file_path: str) -> str:
         """Read and return file contents."""
@@ -220,10 +220,10 @@ class TestingAgent(BaseAgent):
         Example: src/agents/idioms_agent.py -> tests/agents/test_idioms_agent.py
         """
         if "src/" in source_path:
-            source_path = source_path[source_path.index("src/"):]
+            source_path = source_path[source_path.index("src/") :]
         elif "data/" in source_path:
-            source_path = source_path[source_path.index("data/"):]
-        
+            source_path = source_path[source_path.index("data/") :]
+
         directory = source_path.rsplit("/", 1)[0]
         filename = source_path.rsplit("/", 1)[1]
         return f"tests/{directory}/test_{filename}"

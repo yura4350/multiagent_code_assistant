@@ -38,7 +38,7 @@ class Controller:
 
         if planned_input.apply:
             logger.info("Applying auto-fixes")
-            agent.apply(suggestions,planned_input.file_path)
+            agent.apply(suggestions, planned_input.file_path)
             issues = agent.scan(planned_input.file_path)  # rescan current state only
 
         is_valid = agent.validate(issues)
