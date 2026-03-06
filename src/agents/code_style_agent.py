@@ -3,6 +3,7 @@ import logging
 import subprocess
 
 from src.agents.abstract_agent import BaseAgent
+from src.model.code_style_applier import Applier
 from src.model.code_style_generator import Generator
 from src.model.code_style_scanner import Scanner
 from src.model.validator import Validator
@@ -45,8 +46,7 @@ class StyleAgent(BaseAgent):
     """
 
     def apply(self, suggestions: list[Suggestion] | None, file_path: str) -> None:
-        self._run_ruff_fix(file_path)
-        self._run_ruff_format(file_path)
+        Applier().apply(suggestions, file_path)
 
     def _run_ruff_check(self, file_path: str) -> list[dict]:
         try:
@@ -100,26 +100,6 @@ class StyleAgent(BaseAgent):
             )
 
         return issues
-
-    def _run_ruff_fix(self, file_path: str) -> None:
-        result = subprocess.run(
-            ["ruff", "check", file_path, "--fix"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode not in (0, 1):
-            logger.warning("Ruff fix failed: %s", result.stderr.strip())
-
-    def _run_ruff_format(self, file_path: str) -> None:
-        result = subprocess.run(
-            ["ruff", "format", file_path],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode not in (0, 1):
-            logger.warning("Ruff format failed: %s", result.stderr.strip())
 
     def _severity_from_rule(self, rule_id: str) -> str:
         # Lightweight heuristic for MVP reporting.
