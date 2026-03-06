@@ -11,7 +11,7 @@ from src.model.llm_applier import LLMApplier
 from src.model.llm_generator import LLMGenerator
 from src.model.llm_scanner import LLMScanner
 from src.model.prompt_registry import PromptRegistry
-from src.model.validator import Validator
+from src.model.testing_validator import Validator
 from src.models.issue import Issue
 from src.models.suggestion import Suggestion
 
@@ -85,20 +85,8 @@ class TestingAgent(BaseAgent):
         )
 
     def validate(self, suggestion) -> bool:
-        """Validate that suggestion contains at least one test function."""
-        if isinstance(suggestion, list):
-            # Controller mistakenly passes issues list — just return True
-            logger.warning("validate() called with a list, skipping validation.")
-            return True
-        if not hasattr(suggestion, "fixed_code"):
-            return True
-        if not suggestion.fixed_code or not suggestion.fixed_code.strip():
-            logger.warning("Suggestion has no fixed code, skipping.")
-            return False
-        if "def test_" not in suggestion.fixed_code:
-            logger.warning("Suggestion contains no test functions, skipping.")
-            return False
-        return True
+        validator = Validator(suggestion);
+        return validator.validate()
 
     def apply(self, suggestions: list[Suggestion], file_path: str) -> None:
         """Write suggested tests to the corresponding test file."""
