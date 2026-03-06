@@ -3,6 +3,7 @@ import logging
 from src.agents.code_style_agent import StyleAgent
 from src.agents.idioms_agent import IdiomsAgent
 from src.agents.testing_agent import TestingAgent
+from src.agents.clean_code_agent import CleanCodeAgent
 from src.model.input import ParsedInput, parse_input
 from src.model.planner import plan
 from src.models.issue import Issue
@@ -25,6 +26,8 @@ class Controller:
             agent = IdiomsAgent()
         elif agent_name == "TESTS":
             agent = TestingAgent()
+        elif agent_name == "CLEAN_CODE":
+            agent = CleanCodeAgent()
         else:
             raise ValueError(f"Unknown agent: {agent_name}")
 
