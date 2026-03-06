@@ -7,8 +7,9 @@ from pydantic import BaseModel
 from src.agents.code_style_agent import StyleAgent
 from src.agents.idioms_agent import IdiomsAgent
 from src.agents.testing_agent import TestingAgent
-from src.models.issue import Issue
-from src.models.suggestion import Suggestion
+from src.agents.clean_code_agent import CleanCodeAgent
+from src.util.issue import Issue
+from src.util.suggestion import Suggestion
 
 app = FastAPI()
 
@@ -16,7 +17,7 @@ AGENT_REGISTRY = {
     "CODE_STYLE": StyleAgent,
     "IDIOMS": IdiomsAgent,
     "TESTS": TestingAgent,
-    # "DESIGN": None,  # Placeholder for DesignAgent
+    "CLEAN_CODE": CleanCodeAgent
 }
 
 # Request / Response models
@@ -58,11 +59,14 @@ class ApplyResponse(BaseModel):
     # Issues remaining after the fix has been applied
     remaining_issues: list[Issue]
 
+
 class ValidateRequest(BaseModel):
     issues: list[Issue]
 
+
 class ValidateResponse(BaseModel):
     is_valid: bool
+
 
 # Helper functions
 def _get_agent(agent_name: str):
@@ -148,9 +152,10 @@ def apply_endpoint(agent: str, request: ApplyRequest):
     remaining_issues = _scan(a, fixed_content, request.file_name)
     return ApplyResponse(fixed_content=fixed_content, remaining_issues=remaining_issues)
 
+
 # Endpoints - validate
 @app.post("/agents/{agent}/validate", response_model=ValidateResponse)
-def validate_endpoint(agent: str, request: ValidateRequest): 
+def validate_endpoint(agent: str, request: ValidateRequest):
     """Validates the agent identified proper issues."""
     a = _get_agent(agent)
     is_valid = a.validate(request.issues)
@@ -172,7 +177,6 @@ def analyze(request: AnalyzeRequest):
             )
     else:
         agents_to_run = list(AGENT_REGISTRY.values())
-
 
     temp_path = _write_temp_source_file(request.file_content, request.file_name)
     with tempfile.NamedTemporaryFile(

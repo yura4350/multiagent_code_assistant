@@ -5,10 +5,11 @@ Run with: python -m pytest tests/agents/test_idioms_agent.py
 from unittest.mock import MagicMock, patch
 
 from src.agents.idioms_agent import IdiomsAgent
-from src.model.llm_generator import LLMGenerator
-from src.model.prompt_registry import PromptRegistry
-from src.models.issue import Issue
-from src.models.suggestion import Suggestion
+from src.util.llm_generator import LLMGenerator
+from src.util.llm_scanner import LLMScanner
+from src.util.prompt_registry import PromptRegistry
+from src.util.issue import Issue
+from src.util.suggestion import Suggestion
 
 MOCK_ISSUES_JSON = """[
     {"line": 3, "message": "Use enumerate()", "severity": "warning",
@@ -56,7 +57,7 @@ def test_idioms_scan(mock_openai, monkeypatch):
 
 
 @patch("src.agents.idioms_agent.OpenAI")
-@patch("src.model.prompt_registry.PromptRegistry.load")
+@patch("src.util.prompt_registry.PromptRegistry.load")
 def test_idioms_get_suggestions(mock_load_prompt, mock_openai, monkeypatch):
     _set_llm_env(monkeypatch)
 
@@ -130,10 +131,14 @@ def test_read_file(tmp_path, monkeypatch):
     assert content == "print('hello')\n"
 
 
-def test_parse_issues_invalid_json(monkeypatch):
-    _set_llm_env(monkeypatch)
-    agent = IdiomsAgent()
-    result = agent._parse_issues("not valid json")
+def test_llm_scanner_parse_issues_invalid_json(monkeypatch):
+    dummy_client = MagicMock()
+    scanner = LLMScanner(
+        client=dummy_client,
+        model="GPT 4.1",
+        prompt_registry=PromptRegistry(),
+    )
+    result = scanner._parse_issues("not valid json")
     assert result == []
 
 
