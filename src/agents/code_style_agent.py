@@ -3,9 +3,11 @@ import logging
 import subprocess
 
 from src.agents.abstract_agent import BaseAgent
+from src.model.code_style_generator import Generator
+from src.model.code_style_scanner import Scanner
+from src.model.validator import Validator
 from src.models.issue import Issue
 from src.models.suggestion import Suggestion
-from src.model.validator import Validator
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +21,7 @@ class StyleAgent(BaseAgent):
     """
 
     def scan(self, file_path: str) -> list[Issue]:
-        lint_results = self._run_ruff_check(file_path)
-        return self._parse_ruff_output(lint_results)
+        return Scanner().scan(file_path)
 
     """
     Generate suggestions for the linting issues.
@@ -28,18 +29,7 @@ class StyleAgent(BaseAgent):
     """
 
     def get_suggestions(self, issues: list[Issue], code: str) -> list[Suggestion]:
-        suggestions: list[Suggestion] = []
-
-        for issue in issues:
-            suggestions.append(
-                Suggestion(
-                    issue=issue,
-                    rationale=f"Fix {issue.rule_id}: {issue.message}",
-                    confidence=1.0,
-                )
-            )
-
-        return suggestions
+        return Generator().get_suggestions(issues, code)
 
     """
     Validate the suggestions
