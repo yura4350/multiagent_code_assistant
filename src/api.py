@@ -7,8 +7,8 @@ from pydantic import BaseModel
 from src.agents.code_style_agent import StyleAgent
 from src.agents.idioms_agent import IdiomsAgent
 from src.agents.testing_agent import TestingAgent
-from src.models.issue import Issue
-from src.models.suggestion import Suggestion
+from src.util.issue import Issue
+from src.util.suggestion import Suggestion
 
 app = FastAPI()
 

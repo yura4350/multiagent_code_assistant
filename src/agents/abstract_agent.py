@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
-from src.models.issue import Issue
-from src.models.suggestion import Suggestion
+from src.util.issue import Issue
+from src.util.suggestion import Suggestion
 
 
 class BaseAgent(ABC):

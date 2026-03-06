@@ -1,7 +1,7 @@
 import logging
 import subprocess
 
-from src.models.suggestion import Suggestion
+from src.util.suggestion import Suggestion
 
 logger = logging.getLogger(__name__)
 

@@ -2,7 +2,7 @@ import json
 import logging
 import subprocess
 
-from src.models.issue import Issue
+from src.util.issue import Issue
 
 logger = logging.getLogger(__name__)
 

@@ -1,12 +1,12 @@
 import logging
 
 from src.agents.abstract_agent import BaseAgent
-from src.model.code_style_applier import Applier
-from src.model.code_style_generator import Generator
-from src.model.code_style_scanner import Scanner
-from src.model.validator import Validator
-from src.models.issue import Issue
-from src.models.suggestion import Suggestion
+from src.util.code_style_applier import Applier
+from src.util.code_style_generator import Generator
+from src.util.code_style_scanner import Scanner
+from src.util.validator import Validator
+from src.util.issue import Issue
+from src.util.suggestion import Suggestion
 
 logger = logging.getLogger(__name__)
 

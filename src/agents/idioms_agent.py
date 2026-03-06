@@ -5,13 +5,13 @@ import os
 from openai import OpenAI
 
 from src.agents.abstract_agent import BaseAgent
-from src.model.llm_applier import LLMApplier
-from src.model.llm_generator import LLMGenerator
-from src.model.llm_scanner import LLMScanner
-from src.model.prompt_registry import PromptRegistry
-from src.model.validator import Validator
-from src.models.issue import Issue
-from src.models.suggestion import Suggestion
+from src.util.llm_applier import LLMApplier
+from src.util.llm_generator import LLMGenerator
+from src.util.llm_scanner import LLMScanner
+from src.util.prompt_registry import PromptRegistry
+from src.util.validator import Validator
+from src.util.issue import Issue
+from src.util.suggestion import Suggestion
 
 logger = logging.getLogger(__name__)
 

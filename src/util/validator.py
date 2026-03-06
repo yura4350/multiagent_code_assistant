@@ -1,6 +1,6 @@
 import logging
 
-from src.models.issue import Issue
+from src.util.issue import Issue
 
 logger = logging.getLogger(__name__)
 

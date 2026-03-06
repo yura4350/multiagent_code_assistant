@@ -3,9 +3,9 @@ import logging
 
 from openai import OpenAI
 
-from src.model.prompt_registry import PromptRegistry
-from src.models.issue import Issue
-from src.models.suggestion import Suggestion
+from src.util.prompt_registry import PromptRegistry
+from src.util.issue import Issue
+from src.util.suggestion import Suggestion
 
 logger = logging.getLogger(__name__)
 

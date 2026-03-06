@@ -1,8 +1,8 @@
 import logging
 import os
 
-from src.model.testing_validator import Validator
-from src.models.suggestion import Suggestion
+from src.util.testing_validator import Validator
+from src.util.suggestion import Suggestion
 
 logger = logging.getLogger(__name__)
 

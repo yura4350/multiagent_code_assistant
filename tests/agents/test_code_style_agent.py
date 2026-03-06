@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.agents.code_style_agent import StyleAgent
-from src.model.code_style_scanner import Scanner
-from src.models.issue import Issue
+from src.util.code_style_scanner import Scanner
+from src.util.issue import Issue
 
 
 # ---------------------------------------------------------------------------
@@ -185,7 +185,7 @@ def test_validate_with_multiple_issues_returns_false():
 # apply (mocked subprocess)
 # ---------------------------------------------------------------------------
 
-@patch("src.model.code_style_applier.subprocess.run")
+@patch("src.util.code_style_applier.subprocess.run")
 def test_apply_calls_ruff_fix_and_format(mock_run):
     mock_run.return_value = MagicMock(returncode=0, stderr="")
     agent = StyleAgent()
@@ -202,7 +202,7 @@ def test_apply_calls_ruff_fix_and_format(mock_run):
 # _run_ruff_check (mocked subprocess)
 # ---------------------------------------------------------------------------
 
-@patch("src.model.code_style_scanner.subprocess.run")
+@patch("src.util.code_style_scanner.subprocess.run")
 def test_run_ruff_check_returns_parsed_json(mock_run):
     import json
     payload = [_make_ruff_entry()]
@@ -211,25 +211,25 @@ def test_run_ruff_check_returns_parsed_json(mock_run):
     assert scanner._run_ruff_check("file.py") == payload
 
 
-@patch("src.model.code_style_scanner.subprocess.run")
+@patch("src.util.code_style_scanner.subprocess.run")
 def test_run_ruff_check_empty_stdout_returns_empty(mock_run):
     mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
     assert Scanner()._run_ruff_check("file.py") == []
 
 
-@patch("src.model.code_style_scanner.subprocess.run")
+@patch("src.util.code_style_scanner.subprocess.run")
 def test_run_ruff_check_bad_json_returns_empty(mock_run):
     mock_run.return_value = MagicMock(returncode=1, stdout="not json", stderr="")
     assert Scanner()._run_ruff_check("file.py") == []
 
 
-@patch("src.model.code_style_scanner.subprocess.run")
+@patch("src.util.code_style_scanner.subprocess.run")
 def test_run_ruff_check_error_returncode_returns_empty(mock_run):
     mock_run.return_value = MagicMock(returncode=2, stdout="", stderr="fatal error")
     assert Scanner()._run_ruff_check("file.py") == []
 
 
 def test_run_ruff_check_ruff_not_found_raises():
-    with patch("src.model.code_style_scanner.subprocess.run", side_effect=FileNotFoundError):
+    with patch("src.util.code_style_scanner.subprocess.run", side_effect=FileNotFoundError):
         with pytest.raises(RuntimeError, match="Ruff not found"):
             Scanner()._run_ruff_check("file.py")

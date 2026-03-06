@@ -6,8 +6,8 @@ import json
 from unittest.mock import MagicMock, mock_open, patch
 
 from src.agents.testing_agent import TestingAgent
-from src.models.issue import Issue
-from src.models.suggestion import Suggestion
+from src.util.issue import Issue
+from src.util.suggestion import Suggestion
 
 MOCK_ISSUES_JSON = """[
     {"line": 3, "message": "Use enumerate()", "severity": "warning",
