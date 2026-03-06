@@ -12,7 +12,7 @@ class Applier:
     def __init__(self):
         pass
 
-    def apply(self, suggestions: list[Suggestion], file_path: str):
+    def apply(self, suggestions: list[Suggestion], test_file_path):
         """Write suggested tests to the corresponding test file."""
         valid_suggestions = [s for s in suggestions if Validator(s).validate()]
 
@@ -22,7 +22,6 @@ class Applier:
 
         # Combine all suggested test functions
         fixed_code_all = "\n\n".join(s.fixed_code for s in valid_suggestions)
-        test_file_path = self._get_test_file_path(file_path)
 
         # Create the directory if it doesn't exist
         os.makedirs(os.path.dirname(test_file_path), exist_ok=True)

@@ -90,7 +90,8 @@ class TestingAgent(BaseAgent):
 
     def apply(self, suggestions: list[Suggestion], file_path: str) -> None:
         applier = Applier()
-        applier.apply(suggestions, file_path)
+        test_file_path = self._get_test_file_path(file_path)
+        applier.apply(suggestions, test_file_path=test_file_path)
 
     def _read_file(self, file_path: str) -> str:
         """Read and return file contents."""
