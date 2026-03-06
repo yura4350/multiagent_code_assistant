@@ -48,6 +48,15 @@ class CleanCodeAgent(BaseAgent):
 
         return llm_scanner.scan(prompt_name="cleancode.scan", context=context)
 
+    def get_suggestions(self, issues, code):
+        return super().get_suggestions(issues, code)
+
+    def validate(self, suggestion):
+        return super().validate(suggestion)
+    
+    def apply(self, suggestions, file_path):
+        return super().apply(suggestions, file_path)
+
     def _read_file(self, file_path: str) -> str:
         with open(file_path, "r") as file:
             content = file.read()
