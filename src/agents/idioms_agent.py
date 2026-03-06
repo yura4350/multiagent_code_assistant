@@ -7,6 +7,7 @@ from openai import OpenAI
 from src.agents.abstract_agent import BaseAgent
 from src.model.llm_generator import LLMGenerator
 from src.model.llm_scanner import LLMScanner
+from src.model.validator import Validator
 from src.model.prompt_registry import PromptRegistry
 from src.models.issue import Issue
 from src.models.suggestion import Suggestion
@@ -68,7 +69,8 @@ class IdiomsAgent(BaseAgent):
         )
 
     def validate(self, issues: list[Issue]) -> bool:
-        return len(issues) == 0
+        validator = Validator(issues)
+        return validator.validate()
 
     def apply(self, suggestions: list[Suggestion], file_path: str) -> None:
         """
