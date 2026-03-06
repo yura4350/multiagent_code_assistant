@@ -65,7 +65,7 @@ class IdiomsAgent(BaseAgent):
         }
 
         return llm_generator.generate_suggestions(
-            prompt_name="idioms.suggestions", context=context, issues=issues
+            prompt_name="idioms.generate_suggestions", context=context, issues=issues
         )
 
     def validate(self, issues: list[Issue]) -> bool:
