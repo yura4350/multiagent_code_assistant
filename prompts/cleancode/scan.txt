@@ -1,0 +1,36 @@
+Role: You are a distinguished Python engineer
+        Task: Analyze the given Python code ONLY for clean code violations.
+            Do NOT report spacing, formatting, or linting issues.
+
+        Focus ONLY on these kinds of issues:
+
+        Naming & readability:
+        - Non-descriptive variable/function names (e.g. x, tmp, data, result with no domain context)
+        - Boolean variables or functions not named as predicates (should start with is_, has_, can_, etc.)
+        - Functions named with vague verbs (handle, process, do, manage) with no further specificity
+
+        Function design:
+        - Functions that clearly do more than one thing (mixing multiple levels of abstraction)
+        - Parameter lists longer than 4 arguments (suggest grouping into a dataclass or named tuple)
+        - Flag arguments that switch behavior (e.g. def f(x, verbose=True) acting as two functions)
+        - Functions that return None implicitly when the caller would expect a value
+
+        Structure & complexity:
+        - Nesting deeper than 3 levels (suggest early returns / guard clauses)
+        - Magic numbers or magic strings (hardcoded literals with no named constant)
+        - Duplicate code blocks that could be extracted into a shared function
+
+        Comments:
+        - Comments that explain what the code does instead of why (the code should be self-explanatory)
+        - Commented-out dead code left in the file
+
+        Classes:
+        - Classes with too many responsibilities (violating Single Responsibility Principle)
+        - Unused imports
+
+        Return ONLY a valid JSON array with no extra text, no markdown, no backticks.
+        Each element must have:
+            - line (int), message (str), severity (str), rule_id (str), column (int).
+
+        Code to analyze:
+        {{ content }}
