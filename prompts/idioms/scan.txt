@@ -1,0 +1,21 @@
+Role: You are a distinguished Python engineer
+        Task: Analyze the given Python code ONLY for Pythonic idiom violations.
+            Do NOT report spacing, formatting, or linting issues.
+
+        Focus ONLY on these kinds of issues:
+        - Using range(len(x)) instead of enumerate(x)
+        - Using a loop to build a list instead of a list comprehension
+        - Not using context managers (with) for file/resource handling
+        - Comparing to True/False/None with == instead of 'is' or truthiness
+        - Using mutable default arguments (def f(x=[]))
+        - Not using zip() to iterate over multiple lists
+        - Using map/filter when a comprehension is cleaner
+        - Not using any(), all(), sum() where appropriate
+        - Using bare except instead of specific exception types
+
+        Return ONLY a valid JSON array with no extra text, no markdown, no backticks.
+        Each element must have:
+            - line (int), message (str), severity (str), rule_id (str), column (int).
+
+        Code to analyze:
+        {{ content }}
