@@ -36,7 +36,7 @@ class StyleAgent(BaseAgent):
     """
 
     def validate(self, issues: list[Issue]) -> bool:
-        """Valid when there are no remaining lint issues."""
+        """Valid when there are no remaining lint issues. Uses shared validator."""
         validator = Validator(issues)
         return validator.validate()
 
