@@ -1,9 +1,11 @@
-import logging
 import json
+import logging
 import subprocess
+
 from src.models.issue import Issue
 
 logger = logging.getLogger(__name__)
+
 
 class Scanner:
     def __init__(self):
@@ -65,7 +67,6 @@ class Scanner:
             )
 
         return issues
-
 
     def _severity_from_rule(self, rule_id: str) -> str:
         # Lightweight heuristic for MVP reporting.
