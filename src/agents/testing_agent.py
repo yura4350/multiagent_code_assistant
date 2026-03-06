@@ -65,48 +65,24 @@ class TestingAgent(BaseAgent):
         return llm_scanner.scan(prompt_name="testing.scan", context=context)
 
     def get_suggestions(self, issues: list[Issue], code: str) -> list[Suggestion]:
-        """Generate suggested test code for identified gaps."""
-        client = OpenAI(
-            api_key=LLM_TOKEN,
-            base_url=LLM_API_URL,
+        """Provide suggestions based on the scanned file and identified issues"""
+        client = self._get_client()
+        model = self._get_model()
+
+        llm_generator = LLMGenerator(
+            client=client, model=model, prompt_registry=PromptRegistry()
         )
 
-        issues_json = json.dumps([issue.model_dump() for issue in issues], indent=2)
+        context = {
+            "code": code,
+            "issues_json": json.dumps(
+                [issue.model_dump() for issue in issues], indent=2
+            ),
+        }
 
-        test_suggestions_prompt = f"""
-        Role: You are a distinguished Python engineer at Big Tech.
-        Task: Based on the list of issues identifed in terms of the given Python
-                code ONLY for relevant test cases.
-        Generate suggestions where fixed_code contains the test function(s)
-
-        Return a suggestion.
-        Return ONLY a valid JSON array with no extra text, no markdown, no backticks.
-
-        Each element must have:
-        - "issue": {{object with line, message, severity, rule_id, column}}
-        - "original_code": string
-        - "fixed_code": string
-        - "rationale": string
-        - "confidence": float 0.0-1.0
-
-
-        Code to fix:
-        {code}
-        Issues to go through:
-        {issues_json}
-        """
-
-        response = client.chat.completions.create(
-            model="GPT 4.1",
-            messages=[{"role": "user", "content": test_suggestions_prompt}],
+        return llm_generator.generate_suggestions(
+            prompt_name="testing.generate_suggestions", context=context, issues=issues
         )
-
-        raw = response.choices[0].message.content
-        if raw:
-            logger.info("raw: %s", raw)
-            return self._parse_suggestions(raw, issues)
-
-        return []
 
     def validate(self, suggestion) -> bool:
         """Validate that suggestion contains at least one test function."""
