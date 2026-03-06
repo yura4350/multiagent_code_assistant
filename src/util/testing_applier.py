@@ -1,8 +1,8 @@
 import logging
 import os
 
-from src.util.testing_validator import Validator
 from src.util.suggestion import Suggestion
+from src.util.testing_validator import Validator
 
 logger = logging.getLogger(__name__)
 
