@@ -133,51 +133,6 @@ class TestingAgent(BaseAgent):
             logger.warning("Could not read file %s: %s", file_path, e)
             return ""
 
-    def _parse_issues(self, response: str) -> list[Issue]:
-        """Parse LLM JSON response into a list of Issue objects."""
-        try:
-            clean = response.strip().removeprefix("```json").removesuffix("```").strip()
-            data = json.loads(clean)
-            issues = [Issue(**item) for item in data]
-            logger.info("Parsed %d issues from LLM response", len(issues))
-            return issues
-        except (json.JSONDecodeError, TypeError) as e:
-            logger.error("Failed to parse issues from LLM response: %s", e)
-            return []
-
-    def _parse_suggestions(
-        self, response: str, issues: list[Issue]
-    ) -> list[Suggestion]:
-        """Parse LLM JSON response into a list of Suggestion objects."""
-        try:
-            clean = response.strip().removeprefix("```json").removesuffix("```").strip()
-            data = json.loads(clean)
-            issue_map = {issue.rule_id: issue for issue in issues}
-            suggestions = []
-            for item in data:
-                rule_id = item.get("issue", {}).get("rule_id")
-                issue = issue_map.get(rule_id)
-                if not issue:
-                    logger.warning(
-                        "No matching issue for rule_id %s, skipping.", rule_id
-                    )
-                    continue
-                suggestions.append(
-                    Suggestion(
-                        issue=issue,
-                        original_code=item.get("original_code")
-                        or item.get("original code"),
-                        fixed_code=item.get("fixed_code") or item.get("fixed code"),
-                        rationale=item.get("rationale", ""),
-                        confidence=item.get("confidence"),
-                    )
-                )
-            logger.info("Parsed %d suggestions from LLM response", len(suggestions))
-            return suggestions
-        except (json.JSONDecodeError, TypeError) as e:
-            logger.error("Failed to parse suggestions from LLM response: %s", e)
-            return []
-
     def _get_test_file_path(self, source_path: str) -> str:
         """Derive the test file path from a source file path.
 
