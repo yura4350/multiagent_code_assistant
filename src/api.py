@@ -17,7 +17,7 @@ AGENT_REGISTRY = {
     "CODE_STYLE": StyleAgent,
     "IDIOMS": IdiomsAgent,
     "TESTS": TestingAgent,
-    "CLEAN_CODE": CleanCodeAgent
+    "CLEAN_CODE": CleanCodeAgent,
 }
 
 # Request / Response models
