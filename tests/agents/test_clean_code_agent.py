@@ -28,7 +28,7 @@ MOCK_SUGGESTIONS_JSON = """[
       "rule_id": "unused-import",
       "column": 1
     },
-    "original_code": "import os, sys, json\nimport os\nimport math",
+    "original_code": "import os, sys, json\\nimport os\\nimport math",
     "fixed_code": "import json",
     "rationale": "Removes unnecessary imports to reduce clutter and potential confusion. Only keep modules used in the code.",
     "confidence": 1.0
