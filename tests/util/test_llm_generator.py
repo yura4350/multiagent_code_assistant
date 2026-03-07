@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
 
-from src.model.llm_generator import LLMGenerator
-from src.models.issue import Issue
+from src.util.llm_generator import LLMGenerator
+from src.util.issue import Issue
 
 
 def _make_issue(rule_id: str = "R1") -> Issue:

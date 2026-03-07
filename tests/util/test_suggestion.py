@@ -3,8 +3,8 @@ Tests for Suggestion model
 Run with: python -m pytest tests/models/test_suggestion.py
 """
 
-from src.models.issue import Issue
-from src.models.suggestion import Suggestion
+from src.util.issue import Issue
+from src.util.suggestion import Suggestion
 
 
 def test_create_suggestion():
