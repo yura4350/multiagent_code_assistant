@@ -11,16 +11,21 @@ A VS Code extension that connects to an AI-powered code analysis backend to scan
 
 ## Extension Settings
 
-- `aiAssistant.backendUrl`: Backend server URL (default: `http://vcm-52418.vm.duke.edu:4003`)
-- If you're unable to connect to the server using the above URL, try fixing the url to `http://vcm-52427.vm.duke.edu:4003` (dev server) manually:
+The extension ships pre-configured to talk to the deployed dev server.
 
-    1. Open Settings (`Cmd+,`)
-    2. Search for "Ai Assistant: Backend Url". 
-    3. Modify the URL to `http://vcm-52427.vm.duke.edu:4003`
+- `aiAssistant.backendUrl` — Backend server URL. Default: `http://vcm-53428.vm.duke.edu:4003`.
+
+To override (e.g. point at a local backend on `http://localhost:4003`):
+
+1. Open Settings (`Cmd+,`)
+2. Search for "Ai Assistant: Backend Url"
+3. Set the desired URL.
+
+**Verify connection**: open `http://vcm-53428.vm.duke.edu:4003/health` in a browser (or `curl` it) before running the analyze command to confirm the backend is reachable.
 
 ## Installation
 
-1. Download the `agent-extension-0.0.1.vsix` file.
+1. Download the `agent-extension-0.0.2.vsix` file.
 2. Open VS Code.
 3. Open the Extensions panel (`Cmd+Shift+X`).
 4. Click the `...` menu (top-right of the panel) and select **Install from VSIX...**.

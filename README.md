@@ -22,9 +22,9 @@ Inputs: file path to reference the file, choice of agent (optional), --apply fla
 
 Known Bugs:
 
-### VCM IDs of servers (Currently not deployed)
+### Deployed dev server
 
-- Dev: http://vcm-52527.vm.duke.edu:4003/
+- Dev: http://vcm-53428.vm.duke.edu:4003/
 
 ### Instructions
 
@@ -48,8 +48,21 @@ python -m src.main data/sample_bad_code_style.py --agent CODE_STYLE --apply
 
 See the [agent-extension README](agent-extension/README.md) for installation and usage instructions.
 
-#### Server-deployed REST API (Currently not deployed)
-- To verify that the program is up and running on the server you can go to the dev server at http://vcm-52527.vm.duke.edu:4003/health and try out the endpoints.
+The packaged extension ships pre-configured to talk to the deployed dev server. To use a local backend instead, run `docker-compose up` (see [Running the backend locally](#running-the-backend-locally)) and override `aiAssistant.backendUrl` to `http://localhost:4003`.
+
+#### Server-deployed REST API
+- To verify that the program is up and running on the server you can go to the dev server at http://vcm-53428.vm.duke.edu:4003/health and try out the endpoints.
+
+#### Running the backend locally
+
+```bash
+# Requires Docker and a populated .env (LITELLM_TOKEN, MODEL_ID, etc.)
+docker-compose up --build
+# Backend is now reachable at http://localhost:4003
+# Verify: curl http://localhost:4003/health
+```
+
+Then point the extension at it by overriding `aiAssistant.backendUrl` in VS Code settings to `http://localhost:4003`.
 
 ### Notes/Assumptions
 - To test the program, run

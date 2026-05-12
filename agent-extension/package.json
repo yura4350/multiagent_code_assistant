@@ -2,7 +2,7 @@
   "name": "agent-extension",
   "displayName": "agent-extension",
   "description": "",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "team02",
   "engines": {
     "vscode": "^1.96.0"
@@ -24,7 +24,7 @@
       "properties": {
         "aiAssistant.backendUrl": {
           "type": "string",
-          "default": "http://vcm-52527.vm.duke.edu:4003",
+          "default": "http://vcm-53428.vm.duke.edu:4003",
           "description": "Backend server URL for AI code assistant"
         }
       }
