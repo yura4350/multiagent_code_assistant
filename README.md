@@ -1,4 +1,4 @@
-AI Assistant
+Multiagent AI Code Assistant
 ====
 
 This project implements various agents to make code improvements.
